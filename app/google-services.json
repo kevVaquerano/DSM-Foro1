@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "255633647921",
+    "project_id": "dsm-foro1",
+    "storage_bucket": "dsm-foro1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:255633647921:android:6efa2d33873adc8597e810",
+        "android_client_info": {
+          "package_name": "com.dreamteam.bookmaster"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "255633647921-gj8p9faa1jcsl57hgkqu431t20h8ka8k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_NM7cWtOEdIJhXazipCUm3M6awvboSLs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "255633647921-gj8p9faa1jcsl57hgkqu431t20h8ka8k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
