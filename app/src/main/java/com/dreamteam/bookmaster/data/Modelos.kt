@@ -3,13 +3,11 @@ package com.dreamteam.bookmaster.data
 
 // Clases de Datos
 data class Libro(
-    val id: String,
-    var titulo: String,
-    var autor: String,
-    var categoria: String,
-    var precio: Double,
-    var stockActual: Int,
-    var stockMinimo: Int
+    val titulo: String = "",
+    val autor: String = "",
+    val categoria: String = "",
+    val disponible: Boolean = true,
+    val stock: Int= 0,
 )
 
 // Clases de Usuario con Herencia
@@ -17,7 +15,7 @@ abstract class Usuario(
     val id: String,
     val nombre: String,
     val email: String,
-    val rol: String
+    val rol: String,
 )
 
 class Cliente(
