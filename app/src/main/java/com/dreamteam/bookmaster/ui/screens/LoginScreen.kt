@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun LoginScreen(
@@ -18,6 +19,7 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
+    var cargando by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -43,6 +45,7 @@ fun LoginScreen(
             onValueChange = { email = it; errorMessage = "" },
             label = { Text("Correo Institucional / Usuario") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            enabled = !cargando,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -54,6 +57,7 @@ fun LoginScreen(
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            enabled = !cargando,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -64,27 +68,51 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                when {
-                    email.isBlank() || password.isBlank() -> {
-                        errorMessage = "Por favor complete todos los campos."
+        if (cargando) {
+            CircularProgressIndicator()
+        } else {
+            Button(
+                onClick = {
+                    when {
+                        email.isBlank() || password.isBlank() -> {
+                            errorMessage = "Por favor complete todos los campos."
+                        }
+                        !email.contains("@") -> {
+                            errorMessage = "Ingrese un correo electrónico válido."
+                        }
+                        password.length < 6 -> {
+                            errorMessage = "La contraseña debe tener al menos 6 caracteres."
+                        }
+                        else -> {
+                            cargando = true
+                            errorMessage = ""
+
+                            // Autenticación real con Firebase Auth
+                            val auth = FirebaseAuth.getInstance()
+                            auth.signInWithEmailAndPassword(email.trim(), password.trim())
+                                .addOnSuccessListener {
+                                    cargando = false
+                                    onNavigateToHome() // Redirige solo si las credenciales son válidas
+                                }
+                                .addOnFailureListener { exception ->
+                                    cargando = false
+                                    errorMessage = "Error al iniciar sesión: Datos incorrectos o sin conexión."
+                                }
+                        }
                     }
-                    !email.contains("@") -> {
-                        errorMessage = "Ingrese un correo electrónico válido."
-                    }
-                    password.length < 6 -> {
-                        errorMessage = "La contraseña debe tener al menos 6 caracteres."
-                    }
-                    else -> onNavigateToHome()
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Ingresar")
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Ingresar")
+            }
         }
 
-        TextButton(onClick = onNavigateToRegister) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        TextButton(
+            onClick = onNavigateToRegister,
+            enabled = !cargando
+        ) {
             Text("¿No tienes cuenta? Regístrate aquí")
         }
     }
