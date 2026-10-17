@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "255633647921-5teloo6t149cg27l9keuemab73o3q85e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dreamteam.bookmaster",
+            "certificate_hash": "9cae6cd055b3f437f5d1d8ef3fd7592e406dcbef"
+          }
+        },
+        {
           "client_id": "255633647921-gj8p9faa1jcsl57hgkqu431t20h8ka8k.apps.googleusercontent.com",
           "client_type": 3
         }
