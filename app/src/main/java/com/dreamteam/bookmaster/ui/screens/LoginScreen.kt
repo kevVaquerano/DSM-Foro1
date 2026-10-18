@@ -1,64 +1,34 @@
 package com.dreamteam.bookmaster.ui.screens
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit = {}
 ) {
+    val auth = Firebase.auth
+    val firestore = Firebase.firestore
+
+    var isLoginMode by remember { mutableStateOf(true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
-    var cargando by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
 
-    val context = LocalContext.current
-    val auth = FirebaseAuth.getInstance()
-
-    // Configuración de Google Sign-In
-    val googleSignInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-            try {
-                val account = task.getResult(ApiException::class.java)!!
-                val credential = GoogleAuthProvider.getCredential(account.idToken, null)
-
-                auth.signInWithCredential(credential)
-                    .addOnSuccessListener {
-                        cargando = false
-                        onNavigateToHome()
-                    }
-                    .addOnFailureListener { exception ->
-                        cargando = false
-                        errorMessage = "Error al autenticar con Firebase: ${exception.localizedMessage}"
-                    }
-            } catch (e: Exception) {
-                cargando = false
-                errorMessage = "Error al iniciar sesión con Google."
-            }
-        } else {
-            cargando = false
-        }
-    }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -68,109 +38,130 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            text = "BookMaster UDB",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = "Inicio de Sesión",
-            style = MaterialTheme.typography.titleMedium
+            text = if (isLoginMode) "Iniciar Sesión" else "Crear Cuenta",
+            style = MaterialTheme.typography.headlineMedium
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        AnimatedVisibility(visible = !isLoginMode) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nombre Completo") },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+        }
+
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it; errorMessage = "" },
-            label = { Text("Correo Institucional / Usuario") },
+            onValueChange = { email = it },
+            label = { Text("Correo Electrónico") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            enabled = !cargando,
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it; errorMessage = "" },
+            onValueChange = { password = it },
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            enabled = !cargando,
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        if (errorMessage.isNotEmpty()) {
+        errorMessage?.let { error ->
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        if (cargando) {
-            CircularProgressIndicator()
-        } else {
-            // Botón de Ingreso Normal
-            Button(
-                onClick = {
-                    when {
-                        email.isBlank() || password.isBlank() -> {
-                            errorMessage = "Por favor complete todos los campos."
+        Button(
+            onClick = {
+                if (email.isBlank() || password.isBlank() || (!isLoginMode && name.isBlank())) {
+                    errorMessage = "Por favor completa todos los campos"
+                    return@Button
+                }
+
+                isLoading = true
+                errorMessage = null
+
+                if (isLoginMode) {
+                    auth.signInWithEmailAndPassword(email, password)
+                        .addOnSuccessListener {
+                            isLoading = false
+                            onNavigateToHome()
                         }
-                        !email.contains("@") -> {
-                            errorMessage = "Ingrese un correo electrónico válido."
+                        .addOnFailureListener { e ->
+                            isLoading = false
+                            errorMessage = e.localizedMessage ?: "Error al iniciar sesión"
                         }
-                        password.length < 6 -> {
-                            errorMessage = "La contraseña debe tener al menos 6 caracteres."
-                        }
-                        else -> {
-                            cargando = true
-                            errorMessage = ""
-                            auth.signInWithEmailAndPassword(email.trim(), password.trim())
+                } else {
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnSuccessListener { result ->
+                            val uid = result.user?.uid ?: return@addOnSuccessListener
+
+                            val userData = mapOf(
+                                "uid" to uid,
+                                "name" to name,
+                                "email" to email,
+                                "createdAt" to System.currentTimeMillis()
+                            )
+
+                            firestore.collection("users").document(uid)
+                                .set(userData)
                                 .addOnSuccessListener {
-                                    cargando = false
+                                    isLoading = false
                                     onNavigateToHome()
                                 }
-                                .addOnFailureListener {
-                                    cargando = false
-                                    errorMessage = "Error al iniciar sesión: Datos incorrectos o sin conexión."
+                                .addOnFailureListener { e ->
+                                    isLoading = false
+                                    errorMessage = "Cuenta creada, pero falló el registro en base de datos: ${e.localizedMessage}"
                                 }
                         }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Ingresar")
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Botón de Inicio de Sesión con Google
-            OutlinedButton(
-                onClick = {
-                    cargando = true
-                    errorMessage = ""
-                    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                        .requestIdToken(context.getString(com.dreamteam.bookmaster.R.string.default_web_client_id))
-                        .requestEmail()
-                        .build()
-                    val googleSignInClient = GoogleSignIn.getClient(context, gso)
-                    googleSignInLauncher.launch(googleSignInClient.signInIntent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !cargando
-            ) {
-                Text("Continuar con Google")
+                        .addOnFailureListener { e ->
+                            isLoading = false
+                            errorMessage = e.localizedMessage ?: "Error al registrar usuario"
+                        }
+                }
+            },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text(if (isLoginMode) "Ingresar" else "Registrarse")
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(
-            onClick = onNavigateToRegister,
-            enabled = !cargando
+            onClick = {
+                isLoginMode = !isLoginMode
+                errorMessage = null
+            }
         ) {
-            Text("¿No tienes cuenta? Regístrate aquí")
+            Text(
+                if (isLoginMode) "¿No tienes cuenta? Regístrate aquí"
+                else "¿Ya tienes cuenta? Inicia sesión"
+            )
         }
     }
 }

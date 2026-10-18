@@ -9,7 +9,6 @@ import com.dreamteam.bookmaster.ui.screens.LoginScreen
 import com.dreamteam.bookmaster.ui.screens.RegisterScreen
 import com.dreamteam.bookmaster.ui.screens.WelcomeScreen
 
-
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
@@ -18,27 +17,25 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun AppNavigation() {
+fun NavGraph() {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        // 2. Establece Welcome como el destino de inicio
         startDestination = Screen.Welcome.route
     ) {
-        // 3. Pantalla de Bienvenida (Se muestra de primero)
+        // 1. Pantalla de Bienvenida (Inicio)
         composable(Screen.Welcome.route) {
             WelcomeScreen(
                 onStartClick = {
                     navController.navigate(Screen.Login.route) {
-                        // Remueve Welcome del historial para que al presionar 'Atrás' en Login no se regrese
                         popUpTo(Screen.Welcome.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        // Pantalla de Login
+        // 2. Pantalla de Login
         composable(Screen.Login.route) {
             LoginScreen(
                 onNavigateToHome = {
@@ -52,7 +49,7 @@ fun AppNavigation() {
             )
         }
 
-        // Pantalla de Registro
+        // 3. Pantalla de Registro
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
@@ -64,7 +61,7 @@ fun AppNavigation() {
             )
         }
 
-        // Pantalla Home
+        // 4. Pantalla Principal (Home)
         composable(Screen.Home.route) {
             HomeScreen(
                 onLogout = {
