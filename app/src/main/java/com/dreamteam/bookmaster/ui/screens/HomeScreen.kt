@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,7 +21,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Modelo de datos para prueba
 data class Book(
     val id: String,
     val title: String,
@@ -36,18 +34,15 @@ data class Book(
 fun HomeScreen(
     onLogout: () -> Unit
 ) {
-    // Colores de la paleta de la app
     val primaryBlue = Color(0xFF42A5F5)
     val darkBlueText = Color(0xFF0D1B2A)
     val backgroundGray = Color(0xFFF5F6F8)
 
-    // Estados para búsqueda y selección de categoría
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Todos") }
 
     val categories = listOf("Todos", "Ficción", "Desarrollo", "Historia", "Ciencia", "Novelas")
 
-    // Lista de datos de ejemplo
     val booksList = remember {
         listOf(
             Book("1", "El Principito", "Antoine de Saint-Exupéry", "Ficción", 4.8, Color(0xFF81BEF7)),
@@ -59,7 +54,6 @@ fun HomeScreen(
         )
     }
 
-    // Filtrado dinámico por búsqueda y categoría
     val filteredBooks = booksList.filter { book ->
         val matchesSearch = book.title.contains(searchQuery, ignoreCase = true) ||
                 book.author.contains(searchQuery, ignoreCase = true)
@@ -78,7 +72,6 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- HEADER SUPERIOR ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -100,7 +93,6 @@ fun HomeScreen(
                     )
                 }
 
-                // Botón de Salir (Logout)
                 Button(
                     onClick = onLogout,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE)),
@@ -118,7 +110,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 1. BARRA DE BÚSQUEDA
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -140,7 +131,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 2. CATEGORÍAS (Filtros horizontales)
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -170,7 +160,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. TÍTULO DE SECCIÓN
             Text(
                 text = if (selectedCategory == "Todos") "Catálogo de Libros" else "Categoría: $selectedCategory",
                 fontSize = 18.sp,
@@ -180,7 +169,6 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 4. REJILLA DE LIBROS (Grid de 2 columnas)
             if (filteredBooks.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -210,9 +198,6 @@ fun HomeScreen(
     }
 }
 
-/**
- * Componente individual para representar cada libro en la cuadrícula
- */
 @Composable
 fun BookCard(book: Book) {
     Card(
@@ -226,7 +211,6 @@ fun BookCard(book: Book) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Portada simulada
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -243,7 +227,6 @@ fun BookCard(book: Book) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Título
             Text(
                 text = book.title,
                 fontSize = 15.sp,
@@ -253,7 +236,6 @@ fun BookCard(book: Book) {
                 color = Color(0xFF0D1B2A)
             )
 
-            // Autor
             Text(
                 text = book.author,
                 fontSize = 12.sp,
@@ -264,7 +246,6 @@ fun BookCard(book: Book) {
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Calificación (Rating)
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {

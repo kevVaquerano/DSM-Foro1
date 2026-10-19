@@ -25,7 +25,6 @@ import com.dreamteam.bookmaster.R
 fun WelcomeScreen(
     onStartClick: () -> Unit
 ) {
-    // Definición de colores basados en la interfaz
     val skyBlueColor = Color(0xFF81BEF7)
     val buttonBlueColor = Color(0xFF42A5F5)
     val shadowBlueColor = Color(0xFF1E88E5)
@@ -38,7 +37,6 @@ fun WelcomeScreen(
             .background(Color.White)
             .padding(16.dp)
     ) {
-        // Tarjeta contenedora principal con fondo claro
         Card(
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = lightBackgroundColor),
@@ -47,7 +45,7 @@ fun WelcomeScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // --- SECCIÓN SUPERIOR: Frase inspiradora ---
+                // Sección Superior: Frase inspiradora
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -60,7 +58,6 @@ fun WelcomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Comillas superiores
                         Text(
                             text = "“",
                             fontSize = 64.sp,
@@ -69,7 +66,6 @@ fun WelcomeScreen(
                             lineHeight = 40.sp
                         )
 
-                        // Texto principal de la frase
                         Text(
                             text = "Donde cada\nlibro deja una\nenseñanza...",
                             fontSize = 32.sp,
@@ -79,7 +75,6 @@ fun WelcomeScreen(
                             modifier = Modifier.padding(horizontal = 8.dp)
                         )
 
-                        // Comillas inferiores
                         Text(
                             text = "”",
                             fontSize = 64.sp,
@@ -91,7 +86,7 @@ fun WelcomeScreen(
                     }
                 }
 
-                // --- SECCIÓN INFERIOR: Marca, ilustración y botón ---
+                // Sección Inferior: Marca, ilustración y botón
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -100,7 +95,6 @@ fun WelcomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Badge del Nombre de la App ("BookMaster")
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = Color.White,
@@ -119,7 +113,6 @@ fun WelcomeScreen(
                         )
                     }
 
-                    // Recuadro ilustrativo con la imagen del gato (ic_cat_books)
                     Card(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = skyBlueColor),
@@ -143,13 +136,11 @@ fun WelcomeScreen(
                         }
                     }
 
-                    // --- BOTÓN "¡Comienza ahora!" con efecto de sombra superpuesta ---
                     Box(
                         modifier = Modifier
                             .padding(bottom = 12.dp)
                             .fillMaxWidth(0.85f)
                     ) {
-                        // Sombra azul oscura desplazada para efecto 3D
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
@@ -157,7 +148,6 @@ fun WelcomeScreen(
                                 .background(shadowBlueColor, shape = RoundedCornerShape(12.dp))
                         )
 
-                        // Botón principal
                         Button(
                             onClick = onStartClick,
                             shape = RoundedCornerShape(12.dp),

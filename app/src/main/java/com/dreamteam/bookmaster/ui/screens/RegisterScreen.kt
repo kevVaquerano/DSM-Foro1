@@ -9,17 +9,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
 @Composable
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
+    val auth = Firebase.auth
+    val firestore = Firebase.firestore
+
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
+
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -38,8 +46,9 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it; errorMessage = "" },
+            onValueChange = { name = it; errorMessage = null },
             label = { Text("Nombre Completo") },
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -47,9 +56,10 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it; errorMessage = "" },
+            onValueChange = { email = it; errorMessage = null },
             label = { Text("Correo Electrónico") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -57,10 +67,11 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it; errorMessage = "" },
+            onValueChange = { password = it; errorMessage = null },
             label = { Text("Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -68,16 +79,21 @@ fun RegisterScreen(
 
         OutlinedTextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it; errorMessage = "" },
+            onValueChange = { confirmPassword = it; errorMessage = null },
             label = { Text("Confirmar Contraseña") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
-        if (errorMessage.isNotEmpty()) {
+        errorMessage?.let { error ->
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -87,19 +103,63 @@ fun RegisterScreen(
                 when {
                     name.isBlank() || email.isBlank() || password.isBlank() -> {
                         errorMessage = "Todos los campos son obligatorios."
+                        return@Button
                     }
                     !email.contains("@") -> {
                         errorMessage = "Ingrese un correo válido."
+                        return@Button
                     }
                     password != confirmPassword -> {
                         errorMessage = "Las contraseñas no coinciden."
+                        return@Button
                     }
-                    else -> onRegisterSuccess()
+                    password.length < 6 -> {
+                        errorMessage = "La contraseña debe tener al menos 6 caracteres."
+                        return@Button
+                    }
                 }
+
+                isLoading = true
+                errorMessage = null
+
+                auth.createUserWithEmailAndPassword(email.trim(), password.trim())
+                    .addOnSuccessListener { result ->
+                        val uid = result.user?.uid ?: return@addOnSuccessListener
+
+                        val userData = mapOf(
+                            "uid" to uid,
+                            "name" to name.trim(),
+                            "email" to email.trim(),
+                            "createdAt" to System.currentTimeMillis()
+                        )
+
+                        firestore.collection("users").document(uid)
+                            .set(userData)
+                            .addOnSuccessListener {
+                                isLoading = false
+                                onRegisterSuccess()
+                            }
+                            .addOnFailureListener { e ->
+                                isLoading = false
+                                errorMessage = "Cuenta creada, pero falló el registro en base de datos: ${e.localizedMessage}"
+                            }
+                    }
+                    .addOnFailureListener { e ->
+                        isLoading = false
+                        errorMessage = e.localizedMessage ?: "Error al registrar usuario."
+                    }
             },
+            enabled = !isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Registrarse")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Registrarse")
+            }
         }
 
         TextButton(onClick = onNavigateToLogin) {

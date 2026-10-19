@@ -53,7 +53,9 @@ fun NavGraph() {
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
-                    navController.popBackStack()
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
                 },
                 onNavigateToLogin = {
                     navController.popBackStack()
