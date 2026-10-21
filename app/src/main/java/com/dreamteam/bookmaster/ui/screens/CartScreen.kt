@@ -1,0 +1,260 @@
+package com.dreamteam.bookmaster.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+@Composable
+fun CartScreen(
+    cartItems: List<CartItem>,
+    onIncreaseQuantity: (CartItem) -> Unit,
+    onDecreaseQuantity: (CartItem) -> Unit,
+    onRemoveItem: (CartItem) -> Unit,
+    onBackClick: () -> Unit,
+    onCheckoutClick: () -> Unit
+) {
+    val darkBlueText = Color(0xFF0D1B2A)
+    val backgroundGray = Color(0xFFF5F6F8)
+
+    // Cálculo dinámico del subtotal y total de la compra
+    val totalAmount = cartItems.sumOf { it.book.price * it.quantity }
+    val totalBooksCount = cartItems.sumOf { it.quantity }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = backgroundGray
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Header con botón volver
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .shadow(2.dp, RoundedCornerShape(12.dp))
+                ) {
+                    Text(text = "⬅️", fontSize = 18.sp)
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Text(
+                    text = "Carrito de Compras 🛒",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = darkBlueText
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (cartItems.isEmpty()) {
+                // Estado vacío
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "🛒", fontSize = 60.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Tu carrito está vacío",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            } else {
+                // Lista de libros agregados al carrito
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    items(cartItems) { item ->
+                        CartItemCard(
+                            item = item,
+                            onIncrease = { onIncreaseQuantity(item) },
+                            onDecrease = { onDecreaseQuantity(item) },
+                            onRemove = { onRemoveItem(item) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Resumen de la compra y Total
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(4.dp, RoundedCornerShape(16.dp))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Cantidad total:", color = Color.Gray, fontSize = 14.sp)
+                            Text(
+                                text = "$totalBooksCount libros",
+                                fontWeight = FontWeight.Bold,
+                                color = darkBlueText,
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = "Total a pagar:", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = darkBlueText)
+                            Text(
+                                text = "$${String.format("%.2f", totalAmount)}",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 20.sp,
+                                color = Color(0xFF2E7D32)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = onCheckoutClick,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF42A5F5))
+                        ) {
+                            Text(text = "Proceder al Pago 💳", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CartItemCard(
+    item: CartItem,
+    onIncrease: () -> Unit,
+    onDecrease: () -> Unit,
+    onRemove: () -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(2.dp, RoundedCornerShape(16.dp))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Mini portada
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(item.book.colorBackground),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "📖", fontSize = 24.sp)
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Detalles del Libro
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.book.title,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF0D1B2A)
+                )
+                Text(
+                    text = "$${String.format("%.2f", item.book.price)} c/u",
+                    fontSize = 12.sp,
+                    color = Color(0xFF2E7D32),
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // Selector de cantidad (+ / -)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(
+                        onClick = onDecrease,
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(28.dp),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("-", fontSize = 14.sp)
+                    }
+
+                    Text(
+                        text = "${item.quantity}",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+
+                    OutlinedButton(
+                        onClick = onIncrease,
+                        enabled = item.quantity < item.book.stock,
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(28.dp),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("+", fontSize = 14.sp)
+                    }
+                }
+            }
+
+            // Subtotal del ítem y Botón eliminar
+            Column(horizontalAlignment = Alignment.End) {
+                IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
+                    Text(text = "🗑️", fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "$${String.format("%.2f", item.book.price * item.quantity)}",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    color = Color(0xFF0D1B2A)
+                )
+            }
+        }
+    }
+}
