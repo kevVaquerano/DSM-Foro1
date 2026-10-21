@@ -21,12 +21,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+// Modelo de datos con Precio y Stock agregados
 data class Book(
     val id: String,
     val title: String,
     val author: String,
     val category: String,
     val rating: Double,
+    val price: Double,
+    val stock: Int,
     val colorBackground: Color
 )
 
@@ -43,15 +46,15 @@ fun HomeScreen(
 
     val categories = listOf("Todos", "Ficción", "Desarrollo", "Historia", "Novelas")
 
-    // Libros locales en código para pruebas
+    // Lista de libros locales con precio y stock
     val booksList = remember {
         listOf(
-            Book("1", "El Principito", "Antoine de Saint-Exupéry", "Ficción", 4.8, Color(0xFF81BEF7)),
-            Book("2", "Hábitos Atómicos", "James Clear", "Desarrollo", 4.9, Color(0xFFFFB74D)),
-            Book("3", "Cien Años de Soledad", "Gabriel García Márquez", "Novelas", 4.7, Color(0xFFA1887F)),
-            Book("4", "Sapiens", "Yuval Noah Harari", "Historia", 4.6, Color(0xFF81C784)),
-            Book("5", "1984", "George Orwell", "Ficción", 4.8, Color(0xFFE57373)),
-            Book("6", "El Monje que Vendió su Ferrari", "Robin Sharma", "Desarrollo", 4.5, Color(0xFFBA68C8))
+            Book("1", "El Principito", "Antoine de Saint-Exupéry", "Ficción", 4.8, 12.99, 15, Color(0xFF81BEF7)),
+            Book("2", "Hábitos Atómicos", "James Clear", "Desarrollo", 4.9, 18.50, 8, Color(0xFFFFB74D)),
+            Book("3", "Cien Años de Soledad", "Gabriel García Márquez", "Novelas", 4.7, 15.00, 12, Color(0xFFA1887F)),
+            Book("4", "Sapiens", "Yuval Noah Harari", "Historia", 4.6, 22.00, 5, Color(0xFF81C784)),
+            Book("5", "1984", "George Orwell", "Ficción", 4.8, 14.25, 0, Color(0xFFE57373)), // Sin stock
+            Book("6", "El Monje que Vendió su Ferrari", "Robin Sharma", "Desarrollo", 4.5, 16.80, 20, Color(0xFFBA68C8))
         )
     }
 
@@ -73,7 +76,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Header Superior
+            // Encabezado
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -134,7 +137,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Categorías
+            // Filtro por Categorías
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -216,22 +219,24 @@ fun BookCard(book: Book) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
+            // Portada simulada
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
+                    .height(120.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(book.colorBackground),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "📖",
-                    fontSize = 40.sp
+                    fontSize = 38.sp
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Título
             Text(
                 text = book.title,
                 fontSize = 15.sp,
@@ -241,6 +246,7 @@ fun BookCard(book: Book) {
                 color = Color(0xFF0D1B2A)
             )
 
+            // Autor
             Text(
                 text = book.author,
                 fontSize = 12.sp,
@@ -251,18 +257,44 @@ fun BookCard(book: Book) {
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            // Calificación
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "⭐ ",
-                    fontSize = 12.sp
+                    fontSize = 11.sp
                 )
                 Text(
                     text = book.rating.toString(),
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.DarkGray
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Precio y Stock
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Precio
+                Text(
+                    text = "$${String.format("%.2f", book.price)}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color(0xFF2E7D32) // Verde precio
+                )
+
+                // Stock indicador
+                Text(
+                    text = if (book.stock > 0) "Stock: ${book.stock}" else "Agotado",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (book.stock > 0) Color.Gray else Color.Red
                 )
             }
         }
