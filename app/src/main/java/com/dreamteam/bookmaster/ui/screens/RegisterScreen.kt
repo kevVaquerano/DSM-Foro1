@@ -101,7 +101,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 when {
-                    name.isBlank() || email.isBlank() || password.isBlank() -> {
+                    name.isBlank() || email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
                         errorMessage = "Todos los campos son obligatorios."
                         return@Button
                     }
@@ -109,12 +109,12 @@ fun RegisterScreen(
                         errorMessage = "Ingrese un correo válido."
                         return@Button
                     }
-                    password != confirmPassword -> {
-                        errorMessage = "Las contraseñas no coinciden."
-                        return@Button
-                    }
                     password.length < 6 -> {
                         errorMessage = "La contraseña debe tener al menos 6 caracteres."
+                        return@Button
+                    }
+                    password != confirmPassword -> {
+                        errorMessage = "Las contraseñas no coinciden."
                         return@Button
                     }
                 }
@@ -122,10 +122,12 @@ fun RegisterScreen(
                 isLoading = true
                 errorMessage = null
 
+                // 1. Crear usuario en Firebase Auth
                 auth.createUserWithEmailAndPassword(email.trim(), password.trim())
                     .addOnSuccessListener { result ->
                         val uid = result.user?.uid ?: return@addOnSuccessListener
 
+                        // 2. Guardar datos del perfil en Firebase Firestore
                         val userData = mapOf(
                             "uid" to uid,
                             "name" to name.trim(),
@@ -141,7 +143,7 @@ fun RegisterScreen(
                             }
                             .addOnFailureListener { e ->
                                 isLoading = false
-                                errorMessage = "Cuenta creada, pero falló el registro en base de datos: ${e.localizedMessage}"
+                                errorMessage = "Cuenta creada, pero falló el guardado en base de datos: ${e.localizedMessage}"
                             }
                     }
                     .addOnFailureListener { e ->
@@ -161,6 +163,8 @@ fun RegisterScreen(
                 Text("Registrarse")
             }
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(onClick = onNavigateToLogin) {
             Text("¿Ya tienes cuenta? Inicia Sesión")

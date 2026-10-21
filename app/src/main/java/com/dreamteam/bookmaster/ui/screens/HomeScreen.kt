@@ -41,8 +41,9 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Todos") }
 
-    val categories = listOf("Todos", "Ficción", "Desarrollo", "Historia", "Ciencia", "Novelas")
+    val categories = listOf("Todos", "Ficción", "Desarrollo", "Historia", "Novelas")
 
+    // Libros locales en código para pruebas
     val booksList = remember {
         listOf(
             Book("1", "El Principito", "Antoine de Saint-Exupéry", "Ficción", 4.8, Color(0xFF81BEF7)),
@@ -72,6 +73,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Header Superior
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -110,6 +112,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Barra de Búsqueda
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -131,6 +134,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Categorías
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -169,6 +173,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Rejilla de Libros
             if (filteredBooks.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -206,7 +211,7 @@ fun BookCard(book: Book) {
         modifier = Modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(16.dp))
-            .clickable { /* Acción al seleccionar el libro */ }
+            .clickable { /* Detalle del libro opcional */ }
     ) {
         Column(
             modifier = Modifier.padding(12.dp)
