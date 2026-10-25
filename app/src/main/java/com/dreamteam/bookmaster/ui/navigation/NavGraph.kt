@@ -42,9 +42,18 @@ fun NavGraph() {
     ) {
         composable(Screen.Welcome.route) {
             WelcomeScreen(
-                onStartClick = {
+                onLogin = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                        popUpTo(Screen.Welcome.route) {
+                            inclusive = true
+                        }
+                    }
+                },
+                onRegister = {
+                    navController.navigate(Screen.Register.route) {
+                        popUpTo(Screen.Welcome.route) {
+                            inclusive = true
+                        }
                     }
                 }
             )
