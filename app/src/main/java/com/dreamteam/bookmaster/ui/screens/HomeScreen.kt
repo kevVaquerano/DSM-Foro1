@@ -21,6 +21,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Modelo que almacena la información de cada libro.
+ *
+ * Incluye sus datos principales, precio, existencias
+ * y el color utilizado para representar su portada.
+ */
 data class Book(
     val id: String,
     val title: String,
@@ -32,11 +38,23 @@ data class Book(
     val colorBackground: Color
 )
 
+/**
+ * Representa un producto agregado al carrito.
+ *
+ * Relaciona un libro con la cantidad de ejemplares
+ * seleccionados por el usuario.
+ */
 data class CartItem(
     val book: Book,
     var quantity: Int
 )
 
+/**
+ * Pantalla principal de BookMaster.
+ *
+ * Permite explorar el catálogo, buscar libros por título
+ * o autor, filtrar categorías y acceder al carrito.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -46,19 +64,45 @@ fun HomeScreen(
     onCartClick: () -> Unit,
     cartItemCount: Int
 ) {
+    // Colores principales de la interfaz.
     val primaryBlue = Color(0xFF42A5F5)
     val darkBlueText = Color(0xFF0D1B2A)
     val backgroundGray = Color(0xFFF5F6F8)
 
-    var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Todos") }
+    // Guarda el texto que escribe el usuario en la búsqueda.
+    var searchQuery by remember {
+        mutableStateOf("")
+    }
 
-    val categories = listOf("Todos", "Ficción", "Desarrollo", "Historia", "Novelas")
+    // Controla la categoría seleccionada en los filtros.
+    var selectedCategory by remember {
+        mutableStateOf("Todos")
+    }
 
+    // Categorías disponibles para organizar el catálogo.
+    val categories = remember {
+        listOf(
+            "Todos",
+            "Ficción",
+            "Desarrollo",
+            "Historia",
+            "Novelas"
+        )
+    }
+
+    // Filtra los libros según el texto y la categoría elegida.
+    // La búsqueda no distingue entre mayúsculas y minúsculas.
     val filteredBooks = booksList.filter { book ->
-        val matchesSearch = book.title.contains(searchQuery, ignoreCase = true) ||
-                book.author.contains(searchQuery, ignoreCase = true)
-        val matchesCategory = selectedCategory == "Todos" || book.category == selectedCategory
+
+        val matchesSearch =
+            book.title.contains(searchQuery, ignoreCase = true) ||
+                    book.author.contains(searchQuery, ignoreCase = true)
+
+        val matchesCategory =
+            selectedCategory == "Todos" ||
+                    book.category == selectedCategory
+
+        // Solo muestra los libros que cumplen ambas condiciones.
         matchesSearch && matchesCategory
     }
 
@@ -73,7 +117,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Encabezado
+            // Encabezado principal con el nombre de la aplicación.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -87,6 +131,7 @@ fun HomeScreen(
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
+
                     Text(
                         text = "BookMaster",
                         fontSize = 24.sp,
@@ -95,11 +140,13 @@ fun HomeScreen(
                     )
                 }
 
+                // Agrupa los accesos al carrito y al cierre de sesión.
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón Carrito con indicador numérico
+
+                    // Muestra la cantidad de productos del carrito.
                     BadgedBox(
                         badge = {
                             if (cartItemCount > 0) {
@@ -107,26 +154,44 @@ fun HomeScreen(
                                     containerColor = Color.Red,
                                     contentColor = Color.White
                                 ) {
-                                    Text(text = "$cartItemCount")
+                                    Text(
+                                        text = "$cartItemCount"
+                                    )
                                 }
                             }
                         }
                     ) {
+
+                        // Abre la pantalla del carrito de compras.
                         IconButton(
                             onClick = onCartClick,
                             modifier = Modifier
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                                .shadow(2.dp, RoundedCornerShape(12.dp))
+                                .background(
+                                    Color.White,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .shadow(
+                                    2.dp,
+                                    RoundedCornerShape(12.dp)
+                                )
                         ) {
-                            Text(text = "🛒", fontSize = 20.sp)
+                            Text(
+                                text = "🛒",
+                                fontSize = 20.sp
+                            )
                         }
                     }
 
-                    // Botón Salir
+                    // Permite cerrar la sesión actual.
                     Button(
                         onClick = onLogout,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFEBEE)),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFFEBEE)
+                        ),
+                        contentPadding = PaddingValues(
+                            horizontal = 12.dp,
+                            vertical = 6.dp
+                        ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
@@ -141,16 +206,28 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Barra de Búsqueda
+            // Campo para buscar libros por nombre o autor.
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = {
+                    searchQuery = it
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shadow(2.dp, RoundedCornerShape(16.dp))
-                    .background(Color.White, RoundedCornerShape(16.dp)),
-                placeholder = { Text("Buscar libro o autor...") },
-                leadingIcon = { Text("🔍") },
+                    .shadow(
+                        2.dp,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .background(
+                        Color.White,
+                        RoundedCornerShape(16.dp)
+                    ),
+                placeholder = {
+                    Text("Buscar libro o autor...")
+                },
+                leadingIcon = {
+                    Text("🔍")
+                },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -163,20 +240,29 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Categorías
+            // Lista horizontal para seleccionar categorías.
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 items(categories) { category ->
+
+                    // Identifica si esta categoría está seleccionada.
                     val isSelected = category == selectedCategory
+
                     FilterChip(
                         selected = isSelected,
-                        onClick = { selectedCategory = category },
+                        onClick = {
+                            selectedCategory = category
+                        },
                         label = {
                             Text(
                                 text = category,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                fontWeight = if (isSelected) {
+                                    FontWeight.Bold
+                                } else {
+                                    FontWeight.Normal
+                                }
                             )
                         },
                         colors = FilterChipDefaults.filterChipColors(
@@ -193,8 +279,13 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // Actualiza el encabezado según la categoría seleccionada.
             Text(
-                text = if (selectedCategory == "Todos") "Catálogo de Libros" else "Categoría: $selectedCategory",
+                text = if (selectedCategory == "Todos") {
+                    "Catálogo de Libros"
+                } else {
+                    "Categoría: $selectedCategory"
+                },
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = darkBlueText
@@ -202,8 +293,10 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Rejilla de Libros
+            // Comprueba si existen libros que coincidan con los filtros.
             if (filteredBooks.isEmpty()) {
+
+                // Informa cuando la búsqueda no encuentra resultados.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -216,15 +309,29 @@ fun HomeScreen(
                         fontSize = 16.sp
                     )
                 }
+
             } else {
+
+                // Organiza los libros en una cuadrícula de dos columnas.
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    items(filteredBooks, key = { it.id }) { book ->
-                        BookCard(book = book, onClick = { onBookClick(book) })
+
+                    // Crea una tarjeta por cada libro disponible en el filtro.
+                    items(
+                        items = filteredBooks,
+                        key = { it.id }
+                    ) { book ->
+
+                        BookCard(
+                            book = book,
+                            onClick = {
+                                onBookClick(book)
+                            }
+                        )
                     }
                 }
             }
@@ -232,22 +339,38 @@ fun HomeScreen(
     }
 }
 
+/**
+ * Tarjeta que representa un libro dentro del catálogo.
+ *
+ * Muestra su portada, título, autor, calificación,
+ * precio y disponibilidad.
+ */
 @Composable
 fun BookCard(
     book: Book,
     onClick: () -> Unit
 ) {
+    // Colores usados para destacar la información del libro.
+    val darkBlueText = Color(0xFF0D1B2A)
+    val priceGreen = Color(0xFF2E7D32)
+
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
         modifier = Modifier
             .fillMaxWidth()
             .shadow(4.dp, RoundedCornerShape(16.dp))
-            .clickable { onClick() }
+            .clickable {
+                onClick()
+            }
     ) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
+
+            // Portada representativa con el color asignado al libro.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -264,15 +387,17 @@ fun BookCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Muestra el título y limita su extensión a una línea.
             Text(
                 text = book.title,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                color = Color(0xFF0D1B2A)
+                color = darkBlueText
             )
 
+            // Nombre del autor del libro.
             Text(
                 text = book.author,
                 fontSize = 12.sp,
@@ -283,8 +408,15 @@ fun BookCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(text = "⭐ ", fontSize = 11.sp)
+            // Calificación asignada al libro.
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "⭐ ",
+                    fontSize = 11.sp
+                )
+
                 Text(
                     text = book.rating.toString(),
                     fontSize = 11.sp,
@@ -295,23 +427,35 @@ fun BookCard(
 
             Spacer(modifier = Modifier.height(6.dp))
 
+            // Presenta el precio y el número de ejemplares disponibles.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+
+                // Precio unitario del libro.
                 Text(
                     text = "$${String.format("%.2f", book.price)}",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF2E7D32)
+                    color = priceGreen
                 )
 
+                // Indica las existencias o si el libro está agotado.
                 Text(
-                    text = if (book.stock > 0) "Stock: ${book.stock}" else "Agotado",
+                    text = if (book.stock > 0) {
+                        "Stock: ${book.stock}"
+                    } else {
+                        "Agotado"
+                    },
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (book.stock > 0) Color.Gray else Color.Red
+                    color = if (book.stock > 0) {
+                        Color.Gray
+                    } else {
+                        Color.Red
+                    }
                 )
             }
         }

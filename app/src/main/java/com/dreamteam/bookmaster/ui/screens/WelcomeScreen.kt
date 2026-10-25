@@ -1,6 +1,7 @@
-
 package com.dreamteam.bookmaster.ui.screens
 
+import android.media.AudioAttributes
+import android.media.SoundPool
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -23,26 +24,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import android.media.AudioAttributes
-import android.media.SoundPool
 import com.dreamteam.bookmaster.R
 
+/**
+ * Pantalla de bienvenida de BookMaster.
+ *
+ * Contiene el fondo principal, el logo animado,
+ * la frase decorativa, el gatito interactivo
+ * y el botón para continuar al inicio de sesión.
+ */
 @Composable
 fun WelcomeScreen(
     onLogin: () -> Unit,
     onRegister: () -> Unit
 ) {
-
+    // Obtiene las dimensiones para adaptar el diseño a la pantalla.
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
 
-    // =====================================
-    // SONIDOS INTERACTIVOS DEL GATITO
-    // =====================================
-
     val context = LocalContext.current
 
+    // Crea el reproductor para los dos efectos de sonido.
     val reproductorGato = remember(context) {
         SoundPool.Builder()
             .setMaxStreams(2)
@@ -57,37 +60,33 @@ fun WelcomeScreen(
             .build()
     }
 
-    var idMaullido by remember {
-        mutableIntStateOf(0)
-    }
+    // Identificadores de los archivos de audio cargados.
+    var idMaullido by remember { mutableIntStateOf(0) }
+    var idRonroneo by remember { mutableIntStateOf(0) }
 
-    var idRonroneo by remember {
-        mutableIntStateOf(0)
-    }
+    // Indican si los sonidos están listos para reproducirse.
+    var maullidoListo by remember { mutableStateOf(false) }
+    var ronroneoListo by remember { mutableStateOf(false) }
 
-    var maullidoListo by remember {
-        mutableStateOf(false)
-    }
+    // Guarda el canal activo del ronroneo.
+    var canalRonroneo by remember { mutableIntStateOf(0) }
 
-    var ronroneoListo by remember {
-        mutableStateOf(false)
-    }
-
-    var canalRonroneo by remember {
-        mutableIntStateOf(0)
-    }
-
+    /**
+     * Prepara los efectos de sonido al abrir la pantalla.
+     *
+     * SoundPool carga los audios y permite reproducirlos
+     * sin iniciar un reproductor nuevo en cada pulsación.
+     */
     DisposableEffect(reproductorGato) {
-
         reproductorGato.setOnLoadCompleteListener {
                 _, sampleId, status ->
 
             if (sampleId == idMaullido) {
-                maullidoListo = (status == 0)
+                maullidoListo = status == 0
             }
 
             if (sampleId == idRonroneo) {
-                ronroneoListo = (status == 0)
+                ronroneoListo = status == 0
             }
         }
 
@@ -103,6 +102,7 @@ fun WelcomeScreen(
             1
         )
 
+        // Detiene cualquier sonido y libera los recursos.
         onDispose {
             if (canalRonroneo != 0) {
                 reproductorGato.stop(canalRonroneo)
@@ -112,14 +112,17 @@ fun WelcomeScreen(
         }
     }
 
-    // =====================================
-    // ANIMACIÓN DE FLOTACIÓN DEL GATITO
-    // =====================================
-
+    /**
+     * Transición compartida por las animaciones repetitivas.
+     *
+     * Controla la flotación del gato, el pulso del botón
+     * y el desplazamiento del brillo del logo.
+     */
     val infiniteTransition = rememberInfiniteTransition(
-        label = "AnimacionGatito"
+        label = "AnimacionesWelcome"
     )
 
+    // Mueve suavemente el gatito de arriba hacia abajo.
     val movimientoGato by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = -8f,
@@ -130,13 +133,47 @@ fun WelcomeScreen(
             ),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "MovimientoVertical"
+        label = "MovimientoGatito"
     )
 
-    // =====================================
-    // SLIDE IN DEL LOGO BOOKMASTER
-    // =====================================
+    // Aumenta y disminuye ligeramente el tamaño del botón.
+    val escalaBoton by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1200,
+                easing = EaseInOutSine
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulsoBoton"
+    )
 
+    /**
+     * Desplaza el reflejo de luz sobre el logo.
+     *
+     * La animación incluye una pausa inicial,
+     * el recorrido del brillo y una pausa final.
+     */
+    val posicionBrillo by infiniteTransition.animateFloat(
+        initialValue = -0.6f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = keyframes {
+                durationMillis = 4500
+
+                -0.6f at 0
+                -0.6f at 1300
+                1.6f at 2600 using LinearEasing
+                1.6f at 4500
+            },
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "BrilloLogo"
+    )
+
+    // Controla la entrada lateral del logo BookMaster.
     val desplazamientoLogo = remember {
         Animatable(-1f)
     }
@@ -151,59 +188,12 @@ fun WelcomeScreen(
         )
     }
 
-    // =====================================
-    // PULSE DEL BOTÓN COMIENZA AHORA
-    // =====================================
-
-    val animacionBoton = rememberInfiniteTransition(
-        label = "AnimacionBoton"
-    )
-
-    val escalaBoton by animacionBoton.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.05f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = 1200,
-                easing = EaseInOutSine
-            ),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "PulsoBoton"
-    )
-
-    // =====================================
-    // ANIMACIÓN DE BRILLO DEL LOGO
-    // =====================================
-
-    val animacionBrillo = rememberInfiniteTransition(
-        label = "BrilloLogo"
-    )
-
-    val posicionBrillo by animacionBrillo.animateFloat(
-        initialValue = -0.6f,
-        targetValue = 1.6f,
-        animationSpec = infiniteRepeatable(
-            animation = keyframes {
-                durationMillis = 4500
-
-                -0.6f at 0
-                -0.6f at 1300
-                1.6f at 2600 using LinearEasing
-                1.6f at 4500
-            },
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "DesplazamientoBrillo"
-    )
-
-    // =====================================
-    // NUEVO: CAÍDA ESTILO TETRIS
-    // =====================================
-
-    // Cada imagen empieza por encima
-    // de su posición final.
-
+    /**
+     * Animación de caída de la frase y sus comillas.
+     *
+     * Las imágenes comienzan fuera de la pantalla
+     * y llegan a su posición con un pequeño rebote.
+     */
     val alturaCaida = screenHeight.value
 
     val caidaUltimaComilla = remember(alturaCaida) {
@@ -218,19 +208,22 @@ fun WelcomeScreen(
         Animatable(-alturaCaida)
     }
 
-    // Rebote suave al llegar
-    val efectoRebote = spring<Float>(
-        dampingRatio = 0.65f,
-        stiffness = Spring.StiffnessMediumLow
-    )
+    // Configuración compartida para el efecto de rebote.
+    val efectoRebote = remember {
+        spring<Float>(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMediumLow
+        )
+    }
 
-    // Orden:
-    // 1. Última comilla
-    // 2. Frase
-    // 3. Primera comilla
-
+    /**
+     * Ejecuta la caída de manera consecutiva:
+     *
+     * 1. Última comilla.
+     * 2. Frase de bienvenida.
+     * 3. Primera comilla.
+     */
     LaunchedEffect(alturaCaida) {
-
         caidaUltimaComilla.animateTo(
             targetValue = 0f,
             animationSpec = efectoRebote
@@ -247,15 +240,12 @@ fun WelcomeScreen(
         )
     }
 
-    // =====================================
-    // CONTENEDOR PRINCIPAL
-    // =====================================
-
+    // Contenedor que permite superponer los elementos decorativos.
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
 
-        // Fondo de Canva
+        // Imagen de fondo que ocupa toda la pantalla.
         Image(
             painter = painterResource(
                 R.drawable.fondo_welcome
@@ -265,11 +255,7 @@ fun WelcomeScreen(
             contentScale = ContentScale.Crop
         )
 
-        // =====================================
-        // PRIMERA COMILLA DECORATIVA
-        // CAE EN TERCER LUGAR
-        // =====================================
-
+        // Primera comilla: aparece en tercer lugar.
         Image(
             painter = painterResource(
                 R.drawable.primera_comilla
@@ -286,11 +272,7 @@ fun WelcomeScreen(
             contentScale = ContentScale.Fit
         )
 
-        // =====================================
-        // FRASE DE BIENVENIDA
-        // CAE EN SEGUNDO LUGAR
-        // =====================================
-
+        // Frase principal: cae después de la última comilla.
         Image(
             painter = painterResource(
                 R.drawable.frase_fondo
@@ -308,11 +290,7 @@ fun WelcomeScreen(
             contentScale = ContentScale.Fit
         )
 
-        // =====================================
-        // ÚLTIMA COMILLA DECORATIVA
-        // CAE EN PRIMER LUGAR
-        // =====================================
-
+        // Última comilla: es el primer elemento que cae.
         Image(
             painter = painterResource(
                 R.drawable.ultima_comilla
@@ -329,10 +307,13 @@ fun WelcomeScreen(
             contentScale = ContentScale.Fit
         )
 
-        // =====================================
-        // LOGO BOOKMASTER CON SLIDE + BRILLO
-        // =====================================
-
+        /**
+         * Logo principal con entrada lateral y reflejo.
+         *
+         * graphicsLayer controla su desplazamiento,
+         * mientras drawWithContent dibuja el brillo
+         * sobre la imagen original.
+         */
         Image(
             painter = painterResource(
                 R.drawable.logo_bookmaster
@@ -355,11 +336,13 @@ fun WelcomeScreen(
                 .zIndex(2f)
                 .drawWithContent {
 
+                    // Dibuja primero el contenido original del logo.
                     drawContent()
 
                     val centro = size.width * posicionBrillo
                     val ancho = size.width * 0.25f
 
+                    // Crea un degradado que simula un reflejo de luz.
                     val reflejo = Brush.linearGradient(
                         colors = listOf(
                             Color.Transparent,
@@ -376,6 +359,7 @@ fun WelcomeScreen(
                         )
                     )
 
+                    // Aplica el reflejo sobre la imagen del logo.
                     drawRect(
                         brush = reflejo,
                         blendMode = BlendMode.SrcAtop
@@ -384,10 +368,13 @@ fun WelcomeScreen(
             contentScale = ContentScale.Fit
         )
 
-        // =====================================
-        // GATITO INTERACTIVO CON SONIDOS
-        // =====================================
-
+        /**
+         * Gatito interactivo con movimiento de flotación.
+         *
+         * Una pulsación corta reproduce el maullido.
+         * Una pulsación larga reproduce el ronroneo
+         * hasta que el usuario suelta la pantalla.
+         */
         Image(
             painter = painterResource(
                 R.drawable.gato_bookmaster
@@ -402,56 +389,47 @@ fun WelcomeScreen(
                 )
                 .width(screenWidth * 0.55f)
                 .zIndex(1f)
-                .pointerInput(reproductorGato) {
+                .pointerInput(
+                    reproductorGato,
+                    maullidoListo,
+                    ronroneoListo
+                ) {
                     detectTapGestures(
 
-                        // Un toque: maullido
+                        // Reproduce el maullido con un toque corto.
                         onTap = {
                             if (maullidoListo) {
                                 reproductorGato.play(
                                     idMaullido,
-                                    1f,
-                                    1f,
-                                    1,
-                                    0,
-                                    1f
+                                    1f, 1f,
+                                    1, 0, 1f
                                 )
                             }
                         },
 
-                        // Mantener presionado: ronroneo
+                        // Inicia el ronroneo al mantener presionado.
                         onLongPress = {
                             if (ronroneoListo) {
 
                                 if (canalRonroneo != 0) {
-                                    reproductorGato.stop(
-                                        canalRonroneo
-                                    )
+                                    reproductorGato.stop(canalRonroneo)
                                 }
 
-                                canalRonroneo =
-                                    reproductorGato.play(
-                                        idRonroneo,
-                                        1f,
-                                        1f,
-                                        1,
-                                        -1,
-                                        1f
-                                    )
+                                canalRonroneo = reproductorGato.play(
+                                    idRonroneo,
+                                    1f, 1f,
+                                    1, -1, 1f
+                                )
                             }
                         },
 
-                        // Soltar: detener ronroneo
+                        // Detiene el sonido al finalizar la pulsación.
                         onPress = {
                             try {
                                 tryAwaitRelease()
                             } finally {
-
                                 if (canalRonroneo != 0) {
-                                    reproductorGato.stop(
-                                        canalRonroneo
-                                    )
-
+                                    reproductorGato.stop(canalRonroneo)
                                     canalRonroneo = 0
                                 }
                             }
@@ -461,10 +439,12 @@ fun WelcomeScreen(
             contentScale = ContentScale.Fit
         )
 
-        // =====================================
-        // BOTÓN COMIENZA AHORA CON PULSE
-        // =====================================
-
+        /**
+         * Botón principal con efecto de pulso.
+         *
+         * Su imagen aumenta ligeramente de tamaño
+         * y al tocarla abre la pantalla de inicio de sesión.
+         */
         Image(
             painter = painterResource(
                 R.drawable.boton_comenzar
@@ -482,7 +462,9 @@ fun WelcomeScreen(
                     scaleY = escalaBoton
                 }
                 .zIndex(3f)
-                .clickable { onLogin() },
+                .clickable {
+                    onLogin()
+                },
             contentScale = ContentScale.Fit
         )
     }
