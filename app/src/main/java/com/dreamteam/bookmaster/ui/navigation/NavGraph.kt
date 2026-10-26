@@ -2,6 +2,7 @@ package com.dreamteam.bookmaster.ui.navigation
 
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import com.google.firebase.auth.FirebaseAuth
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -223,6 +224,10 @@ fun NavGraph() {
 
                 // Cierra la vista actual y regresa al inicio de sesión.
                 onLogout = {
+                    // Cierra la sesión real de Firebase antes de volver al login.
+                    FirebaseAuth.getInstance().signOut()
+                    selectedBookId = null
+                    cartItems.clear()
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Home.route) {
                             inclusive = true
