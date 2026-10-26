@@ -185,22 +185,34 @@ fun LoginScreen(
                             "${exception.message}"
             }
 
+
         } else {
             isLoading = false
 
-            // Informa si el usuario canceló el proceso de Google.
-            errorMessage = if (
-                result.resultCode == Activity.RESULT_CANCELED
-            ) {
-                "No se completó el inicio de sesión con Google."
-            } else {
-                "Google Sign-In no se completó. Código: ${result.resultCode}"
-            }
+            // Intentar obtener el error real de Google
+            val googleTask = GoogleSignIn
+                .getSignedInAccountFromIntent(result.data)
 
-            Log.e(
-                "BookMasterGoogle",
-                "Resultado Google Sign-In: ${result.resultCode}"
-            )
+            try {
+                googleTask.getResult(ApiException::class.java)
+
+                errorMessage =
+                    "Google no completó el inicio de sesión. " +
+                            "Resultado: ${result.resultCode}"
+
+            } catch (e: ApiException) {
+
+                errorMessage =
+                    "Error de Google Sign-In. Código: ${e.statusCode}"
+
+                Log.e(
+                    "BookMasterGoogle",
+                    "Fallo de Google Sign-In. " +
+                            "Resultado: ${result.resultCode}, " +
+                            "Estado: ${e.statusCode}",
+                    e
+                )
+            }
         }
     }
 
@@ -539,9 +551,12 @@ fun LoginScreen(
                         isLoading = true
                         errorMessage = null
 
-                        googleLauncher.launch(
-                            googleSignInClient.signInIntent
-                        )
+                        googleSignInClient.signOut()
+                            .addOnCompleteListener {
+                                googleLauncher.launch(
+                                    googleSignInClient.signInIntent
+                                )
+                            }
                     }
                 },
                 enabled = !isLoading,
