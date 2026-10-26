@@ -1,5 +1,6 @@
 package com.dreamteam.bookmaster.ui.screens
 
+import android.util.Patterns
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -55,7 +56,7 @@ fun RegisterScreen(
         Text(
             text = "Registro de Usuario",
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
+            color = androidx.compose.ui.graphics.Color(0xFF473071)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -163,7 +164,7 @@ fun RegisterScreen(
                         return@Button
                     }
 
-                    !email.contains("@") -> {
+                    !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> {
                         errorMessage = "Ingrese un correo válido."
                         return@Button
                     }
@@ -187,7 +188,7 @@ fun RegisterScreen(
                 // Crea la cuenta mediante correo y contraseña.
                 auth.createUserWithEmailAndPassword(
                     email.trim(),
-                    password.trim()
+                    password
                 )
                     .addOnSuccessListener { result ->
 
@@ -234,7 +235,10 @@ fun RegisterScreen(
                     }
             },
             enabled = !isLoading,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = androidx.compose.ui.graphics.Color(0xFF7952B5)
+            )
         ) {
 
             // Muestra un indicador mientras Firebase procesa el registro.

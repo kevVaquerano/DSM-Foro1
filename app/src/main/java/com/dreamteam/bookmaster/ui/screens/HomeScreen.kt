@@ -65,9 +65,9 @@ fun HomeScreen(
     cartItemCount: Int
 ) {
     // Colores principales de la interfaz.
-    val primaryBlue = Color(0xFF42A5F5)
-    val darkBlueText = Color(0xFF0D1B2A)
-    val backgroundGray = Color(0xFFF5F6F8)
+    val primaryBlue = Color(0xFF7952B5)
+    val darkBlueText = Color(0xFF473071)
+    val backgroundGray = Color(0xFFFCFAFF)
 
     // Guarda el texto que escribe el usuario en la búsqueda.
     var searchQuery by remember {
@@ -351,7 +351,7 @@ fun BookCard(
     onClick: () -> Unit
 ) {
     // Colores usados para destacar la información del libro.
-    val darkBlueText = Color(0xFF0D1B2A)
+    val darkBlueText = Color(0xFF473071)
     val priceGreen = Color(0xFF2E7D32)
 
     Card(

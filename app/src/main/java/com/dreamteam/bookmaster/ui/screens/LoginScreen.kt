@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import android.util.Patterns
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -469,7 +470,7 @@ fun LoginScreen(
                                 "Por favor completa todos los campos"
                         }
 
-                        !email.contains("@") -> {
+                        !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> {
                             errorMessage = "Ingresa un correo válido"
                         }
 
@@ -479,7 +480,7 @@ fun LoginScreen(
 
                             auth.signInWithEmailAndPassword(
                                 email.trim(),
-                                password.trim()
+                                password
                             )
                                 .addOnSuccessListener {
                                     isLoading = false

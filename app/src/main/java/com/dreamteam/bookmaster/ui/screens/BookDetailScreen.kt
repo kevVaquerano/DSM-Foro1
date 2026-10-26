@@ -1,4 +1,3 @@
-
 package com.dreamteam.bookmaster.ui.screens
 
 import androidx.compose.foundation.background
@@ -29,8 +28,8 @@ fun BookDetailScreen(
     onAddToCart: (Book, Int) -> Unit = { _, _ -> }
 ) {
     // Colores principales utilizados en esta pantalla.
-    val darkBlueText = Color(0xFF0D1B2A)
-    val backgroundGray = Color(0xFFF5F6F8)
+    val darkBlueText = Color(0xFF473071)
+    val backgroundGray = Color(0xFFFCFAFF)
     val confirmationGreen = Color(0xFF2E7D32)
 
     // Guarda la cantidad seleccionada y la reinicia al cambiar de libro o stock.
@@ -142,13 +141,13 @@ fun BookDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
-                                color = Color(0xFFE3F2FD),
+                                color = Color(0xFFEDE5F8),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text(
                                     text = book.category,
                                     fontSize = 12.sp,
-                                    color = Color(0xFF1976D2),
+                                    color = Color(0xFF7952B5),
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(
                                         horizontal = 12.dp,
@@ -239,7 +238,7 @@ fun BookDetailScreen(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier
                                     .background(
-                                        Color(0xFFF0F4F8),
+                                        Color(0xFFF5F0FA),
                                         RoundedCornerShape(12.dp)
                                     )
                                     .padding(
@@ -311,7 +310,7 @@ fun BookDetailScreen(
                             .height(50.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF42A5F5)
+                            containerColor = Color(0xFF7952B5)
                         )
                     ) {
                         Text(

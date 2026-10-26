@@ -32,8 +32,8 @@ fun CartScreen(
     onCheckoutClick: () -> Unit
 ) {
     // Colores utilizados en la pantalla del carrito.
-    val darkBlueText = Color(0xFF0D1B2A)
-    val backgroundGray = Color(0xFFF5F6F8)
+    val darkBlueText = Color(0xFF473071)
+    val backgroundGray = Color(0xFFFCFAFF)
     val priceGreen = Color(0xFF2E7D32)
 
     // Calcula el importe total y la cantidad de ejemplares.
@@ -210,7 +210,7 @@ fun CartScreen(
                                 .height(48.dp),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF42A5F5)
+                                containerColor = Color(0xFF7952B5)
                             )
                         ) {
                             Text(
@@ -242,7 +242,7 @@ fun CartItemCard(
     // Datos utilizados para calcular y mostrar el subtotal.
     val book = item.book
     val subtotal = book.price * item.quantity
-    val darkBlueText = Color(0xFF0D1B2A)
+    val darkBlueText = Color(0xFF473071)
 
     Card(
         shape = RoundedCornerShape(16.dp),
