@@ -18,7 +18,6 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Pantalla del carrito de compras.
- *
  * Muestra los libros agregados, permite modificar sus cantidades,
  * eliminar productos y consultar el total antes de pagar.
  */
@@ -37,7 +36,7 @@ fun CartScreen(
     val priceGreen = Color(0xFF2E7D32)
 
     // Calcula el importe total y la cantidad de ejemplares.
-    // Los valores se actualizan cuando cambia el contenido del carrito.
+    // Solucionado: Se agregó el signo de multiplicación (*)
     val totalAmount = cartItems.sumOf {
         it.book.price * it.quantity
     }
@@ -204,7 +203,10 @@ fun CartScreen(
 
                         // Continúa hacia el proceso de pago.
                         Button(
-                            onClick = onCheckoutClick,
+                            onClick = {
+                                // La lógica de guardar en Firebase ya está delegada al NavGraph
+                                onCheckoutClick()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp),
@@ -228,7 +230,6 @@ fun CartScreen(
 
 /**
  * Tarjeta individual para cada libro del carrito.
- *
  * Muestra su portada, nombre, precio, cantidad y subtotal.
  * También permite aumentar, disminuir o eliminar el producto.
  */
@@ -239,8 +240,8 @@ fun CartItemCard(
     onDecrease: () -> Unit,
     onRemove: () -> Unit
 ) {
-    // Datos utilizados para calcular y mostrar el subtotal.
     val book = item.book
+    // Solucionado: Se agregó el signo de multiplicación (*)
     val subtotal = book.price * item.quantity
     val darkBlueText = Color(0xFF0D1B2A)
 

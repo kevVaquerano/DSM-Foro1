@@ -28,7 +28,6 @@ import com.dreamteam.bookmaster.R
 
 /**
  * Pantalla de bienvenida de BookMaster.
- *
  * Contiene el fondo principal, el logo animado,
  * la frase decorativa, el gatito interactivo
  * y el botón para continuar al inicio de sesión.
@@ -73,14 +72,11 @@ fun WelcomeScreen(
 
     /**
      * Prepara los efectos de sonido al abrir la pantalla.
-     *
      * SoundPool carga los audios y permite reproducirlos
      * sin iniciar un reproductor nuevo en cada pulsación.
      */
     DisposableEffect(reproductorGato) {
-        reproductorGato.setOnLoadCompleteListener {
-                _, sampleId, status ->
-
+        reproductorGato.setOnLoadCompleteListener { _, sampleId, status ->
             if (sampleId == idMaullido) {
                 maullidoListo = status == 0
             }
@@ -114,7 +110,6 @@ fun WelcomeScreen(
 
     /**
      * Transición compartida por las animaciones repetitivas.
-     *
      * Controla la flotación del gato, el pulso del botón
      * y el desplazamiento del brillo del logo.
      */
@@ -152,7 +147,6 @@ fun WelcomeScreen(
 
     /**
      * Desplaza el reflejo de luz sobre el logo.
-     *
      * La animación incluye una pausa inicial,
      * el recorrido del brillo y una pausa final.
      */
@@ -190,7 +184,6 @@ fun WelcomeScreen(
 
     /**
      * Animación de caída de la frase y sus comillas.
-     *
      * Las imágenes comienzan fuera de la pantalla
      * y llegan a su posición con un pequeño rebote.
      */
@@ -218,7 +211,6 @@ fun WelcomeScreen(
 
     /**
      * Ejecuta la caída de manera consecutiva:
-     *
      * 1. Última comilla.
      * 2. Frase de bienvenida.
      * 3. Primera comilla.
@@ -277,8 +269,7 @@ fun WelcomeScreen(
             painter = painterResource(
                 R.drawable.frase_fondo
             ),
-            contentDescription =
-                "Donde cada libro deja una enseñanza",
+            contentDescription = "Donde cada libro deja una enseñanza",
             modifier = Modifier
                 .align(Alignment.Center)
                 .offset(
@@ -309,7 +300,6 @@ fun WelcomeScreen(
 
         /**
          * Logo principal con entrada lateral y reflejo.
-         *
          * graphicsLayer controla su desplazamiento,
          * mientras drawWithContent dibuja el brillo
          * sobre la imagen original.
@@ -327,15 +317,12 @@ fun WelcomeScreen(
                 )
                 .width(screenWidth * 0.73f)
                 .graphicsLayer {
-                    translationX =
-                        desplazamientoLogo.value * size.width
+                    translationX = desplazamientoLogo.value * size.width
 
-                    compositingStrategy =
-                        CompositingStrategy.Offscreen
+                    compositingStrategy = CompositingStrategy.Offscreen
                 }
                 .zIndex(2f)
                 .drawWithContent {
-
                     // Dibuja primero el contenido original del logo.
                     drawContent()
 
@@ -370,7 +357,6 @@ fun WelcomeScreen(
 
         /**
          * Gatito interactivo con movimiento de flotación.
-         *
          * Una pulsación corta reproduce el maullido.
          * Una pulsación larga reproduce el ronroneo
          * hasta que el usuario suelta la pantalla.
@@ -395,7 +381,6 @@ fun WelcomeScreen(
                     ronroneoListo
                 ) {
                     detectTapGestures(
-
                         // Reproduce el maullido con un toque corto.
                         onTap = {
                             if (maullidoListo) {
@@ -410,7 +395,6 @@ fun WelcomeScreen(
                         // Inicia el ronroneo al mantener presionado.
                         onLongPress = {
                             if (ronroneoListo) {
-
                                 if (canalRonroneo != 0) {
                                     reproductorGato.stop(canalRonroneo)
                                 }
@@ -441,7 +425,6 @@ fun WelcomeScreen(
 
         /**
          * Botón principal con efecto de pulso.
-         *
          * Su imagen aumenta ligeramente de tamaño
          * y al tocarla abre la pantalla de inicio de sesión.
          */
