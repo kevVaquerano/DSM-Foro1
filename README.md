@@ -56,14 +56,14 @@ Habilita Authentication (Email/Password) y Firestore Database en la consola de F
 Reglas de Seguridad (Firestore):
 Asegúrate de configurar las reglas básicas en tu base de datos para permitir la lectura y escritura del carrito y el historial:
 
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
+ rules_version = '2';
+ service cloud.firestore {
+   match /databases/{database}/documents {
+     match /users/{userId}/{document=**} {
+       allow read, write: if request.auth != null && request.auth.uid == userId;
+     }
+   }
+ }
 
 
 Compilar y Ejecutar:
