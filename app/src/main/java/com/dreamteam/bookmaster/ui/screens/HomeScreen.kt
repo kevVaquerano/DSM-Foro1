@@ -23,9 +23,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Modelo que almacena la información de cada libro.
- *
- * Incluye sus datos principales, precio, existencias
- * y el color utilizado para representar su portada.
+ * Incluye sus datos principales, precio, existencias y el color utilizado para representar su portada.
  */
 data class Book(
     val id: String,
@@ -40,9 +38,7 @@ data class Book(
 
 /**
  * Representa un producto agregado al carrito.
- *
- * Relaciona un libro con la cantidad de ejemplares
- * seleccionados por el usuario.
+ * Relaciona un libro con la cantidad de ejemplares seleccionados por el usuario.
  */
 data class CartItem(
     val book: Book,
@@ -51,9 +47,8 @@ data class CartItem(
 
 /**
  * Pantalla principal de BookMaster.
- *
- * Permite explorar el catálogo, buscar libros por título
- * o autor, filtrar categorías y acceder al carrito.
+ * Permite explorar el catálogo, buscar libros por título o autor, filtrar categorías,
+ * acceder al historial de compras y gestionar el carrito.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +57,7 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onBookClick: (Book) -> Unit,
     onCartClick: () -> Unit,
+    onHistoryClick: () -> Unit,
     cartItemCount: Int
 ) {
     // Colores principales de la interfaz.
@@ -93,7 +89,6 @@ fun HomeScreen(
     // Filtra los libros según el texto y la categoría elegida.
     // La búsqueda no distingue entre mayúsculas y minúsculas.
     val filteredBooks = booksList.filter { book ->
-
         val matchesSearch =
             book.title.contains(searchQuery, ignoreCase = true) ||
                     book.author.contains(searchQuery, ignoreCase = true)
@@ -140,11 +135,30 @@ fun HomeScreen(
                     )
                 }
 
-                // Agrupa los accesos al carrito y al cierre de sesión.
+                // Agrupa los accesos al historial, al carrito y al cierre de sesión.
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+
+                    // Abre la pantalla del historial de compras.
+                    IconButton(
+                        onClick = onHistoryClick,
+                        modifier = Modifier
+                            .background(
+                                Color.White,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .shadow(
+                                2.dp,
+                                RoundedCornerShape(12.dp)
+                            )
+                    ) {
+                        Text(
+                            text = "📜",
+                            fontSize = 18.sp
+                        )
+                    }
 
                     // Muestra la cantidad de productos del carrito.
                     BadgedBox(
@@ -161,7 +175,6 @@ fun HomeScreen(
                             }
                         }
                     ) {
-
                         // Abre la pantalla del carrito de compras.
                         IconButton(
                             onClick = onCartClick,
@@ -246,7 +259,6 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 items(categories) { category ->
-
                     // Identifica si esta categoría está seleccionada.
                     val isSelected = category == selectedCategory
 
@@ -295,7 +307,6 @@ fun HomeScreen(
 
             // Comprueba si existen libros que coincidan con los filtros.
             if (filteredBooks.isEmpty()) {
-
                 // Informa cuando la búsqueda no encuentra resultados.
                 Box(
                     modifier = Modifier
@@ -309,9 +320,7 @@ fun HomeScreen(
                         fontSize = 16.sp
                     )
                 }
-
             } else {
-
                 // Organiza los libros en una cuadrícula de dos columnas.
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -319,13 +328,11 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-
                     // Crea una tarjeta por cada libro disponible en el filtro.
                     items(
                         items = filteredBooks,
                         key = { it.id }
                     ) { book ->
-
                         BookCard(
                             book = book,
                             onClick = {
@@ -341,9 +348,7 @@ fun HomeScreen(
 
 /**
  * Tarjeta que representa un libro dentro del catálogo.
- *
- * Muestra su portada, título, autor, calificación,
- * precio y disponibilidad.
+ * Muestra su portada, título, autor, calificación, precio y disponibilidad.
  */
 @Composable
 fun BookCard(
@@ -369,7 +374,6 @@ fun BookCard(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-
             // Portada representativa con el color asignado al libro.
             Box(
                 modifier = Modifier
@@ -433,7 +437,6 @@ fun BookCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 // Precio unitario del libro.
                 Text(
                     text = "$${String.format("%.2f", book.price)}",
