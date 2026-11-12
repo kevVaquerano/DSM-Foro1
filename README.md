@@ -1,4 +1,4 @@
-# 📚 Estudiantes: 
+#  Estudiantes: 
 Kevin Arturo Vaquerano Morales  VM223215
 Hayzel Evelyn González Gutiérrez GG240801
 
