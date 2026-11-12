@@ -1,433 +1,327 @@
 package com.dreamteam.bookmaster.ui.navigation
 
+import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.dreamteam.bookmaster.ui.screens.*
+import com.dreamteam.bookmaster.ui.viewmodels.ConnectBD
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 
-/**
- * Define las rutas disponibles dentro de BookMaster.
- *
- * Cada pantalla tiene un identificador único que permite
- * realizar la navegación sin repetir nombres de rutas.
- */
 sealed class Screen(val route: String) {
-
-    // Pantalla inicial de bienvenida.
     object Welcome : Screen("welcome")
-
-    // Pantallas de autenticación.
     object Login : Screen("login")
     object Register : Screen("register")
-
-    // Pantalla principal y catálogo de libros.
     object Home : Screen("home")
-
-    // Detalles de un libro seleccionado.
     object BookDetail : Screen("book_detail")
-
-    // Carrito de compras.
     object Cart : Screen("cart")
+    object History : Screen("history_screen")
 }
 
-/**
- * Administra la navegación principal de BookMaster.
- *
- * Conecta las pantallas de la aplicación y controla
- * temporalmente el catálogo, el carrito de compras
- * y la actualización de las existencias.
- */
 @Composable
 fun NavGraph() {
-
-    // Controlador que permite cambiar entre pantallas.
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val bd = remember { ConnectBD() }
+    var selectedBookId by remember { mutableStateOf<String?>(null) }
+    var cargandoCarrito by remember { mutableStateOf(false) }
+    var guardandoCambio by remember { mutableStateOf(false) }
+    var usuarioDelCarrito by remember { mutableStateOf<String?>(null) }
 
-    // Guarda el identificador del libro seleccionado.
-    var selectedBookId by remember {
-        mutableStateOf<String?>(null)
-    }
-
-    /**
-     * Catálogo de libros disponibles en BookMaster.
-     *
-     * mutableStateListOf permite que Compose actualice
-     * la interfaz cuando cambian las existencias.
-     */
     val booksList = remember {
         mutableStateListOf(
-
-            Book(
-                "1",
-                "El Principito",
-                "Antoine de Saint-Exupéry",
-                "Ficción",
-                4.8,
-                12.99,
-                15,
-                Color(0xFF81BEF7)
-            ),
-
-            Book(
-                "2",
-                "Hábitos Atómicos",
-                "James Clear",
-                "Desarrollo",
-                4.9,
-                18.50,
-                8,
-                Color(0xFFFFB74D)
-            ),
-
-            Book(
-                "3",
-                "Cien Años de Soledad",
-                "Gabriel García Márquez",
-                "Novelas",
-                4.7,
-                15.00,
-                12,
-                Color(0xFFA1887F)
-            ),
-
-            Book(
-                "4",
-                "Sapiens",
-                "Yuval Noah Harari",
-                "Historia",
-                4.6,
-                22.00,
-                5,
-                Color(0xFF81C784)
-            ),
-
-            Book(
-                "5",
-                "1984",
-                "George Orwell",
-                "Ficción",
-                4.8,
-                14.25,
-                0,
-                Color(0xFFE57373)
-            ),
-
-            Book(
-                "6",
-                "El Monje que Vendió su Ferrari",
-                "Robin Sharma",
-                "Desarrollo",
-                4.5,
-                16.80,
-                20,
-                Color(0xFFBA68C8)
-            )
+            Book("1", "El Principito", "Antoine de Saint-Exupéry", "Ficción", 4.8, 12.99, 15, Color(0xFF81BEF7)),
+            Book("2", "Hábitos Atómicos", "James Clear", "Desarrollo", 4.9, 18.50, 8, Color(0xFFFFB74D)),
+            Book("3", "Cien Años de Soledad", "Gabriel García Márquez", "Novelas", 4.7, 15.00, 12, Color(0xFFA1887F)),
+            Book("4", "Sapiens", "Yuval Noah Harari", "Historia", 4.6, 22.00, 5, Color(0xFF81C784)),
+            Book("5", "1984", "George Orwell", "Ficción", 4.8, 14.25, 0, Color(0xFFE57373)),
+            Book("6", "El Monje que Vendió su Ferrari", "Robin Sharma", "Desarrollo", 4.5, 16.80, 20, Color(0xFFBA68C8))
         )
     }
 
-    /**
-     * Lista de productos agregados al carrito.
-     *
-     * Al utilizar una lista de estado, Compose puede
-     * detectar las modificaciones y actualizar los totales.
-     */
-    val cartItems = remember {
-        mutableStateListOf<CartItem>()
+    val cartItems = remember { mutableStateListOf<CartItem>() }
+
+    // Inventario temporal local: no dependemos de la colección books.
+    // PENDIENTE: definir la colección y permisos con el administrador Firebase.
+
+    fun avisar(mensaje: String) {
+        Toast.makeText(context, mensaje, Toast.LENGTH_LONG).show()
     }
 
-    /**
-     * NavHost contiene las rutas de navegación.
-     *
-     * La pantalla Welcome se establece como punto
-     * de inicio cuando se abre la aplicación.
-     */
+    // Al entrar con una cuenta, recuperamos exclusivamente SU carrito remoto.
+    // Mientras se carga, el diálogo impide modificar o vaciar accidentalmente el carrito.
+    fun cargarCarritoDeUsuario() {
+        val uid = Firebase.auth.currentUser?.uid
+        cartItems.clear()
+        usuarioDelCarrito = null
+        if (uid == null) {
+            avisar("Iniciá sesión para recuperar tu carrito")
+            return
+        }
+
+        cargandoCarrito = true
+        bd.obtenerCarrito { productos, error ->
+            // Impide que una respuesta tardía de la cuenta anterior contamine la nueva.
+            if (Firebase.auth.currentUser?.uid != uid) return@obtenerCarrito
+            cargandoCarrito = false
+            if (productos == null) {
+                avisar("No se pudo recuperar el carrito: ${error ?: "error desconocido"}. Volvé a iniciar sesión para reintentar.")
+                return@obtenerCarrito
+            }
+            cartItems.clear()
+            productos.forEach { producto ->
+                val libro = booksList.find { it.id == producto.libroId }
+                if (libro != null) {
+                    cartItems.add(CartItem(libro, producto.cantidad))
+                }
+            }
+            usuarioDelCarrito = uid
+        }
+    }
+
+    // Guardar PRIMERO en Firestore y luego actualizar la interfaz: si falla,
+    // la selección local permanece intacta y se puede volver a intentar.
+    fun cambiarCantidad(libroId: String, cantidadNueva: Int) {
+        val uid = Firebase.auth.currentUser?.uid
+        if (uid == null || uid != usuarioDelCarrito || cargandoCarrito || guardandoCambio) {
+            avisar("Esperá a que se cargue tu carrito")
+            return
+        }
+        if (cantidadNueva < 0) return
+        val stock = booksList.find { it.id == libroId }?.stock ?: 0
+        if (cantidadNueva > stock) {
+            avisar("No hay suficientes existencias")
+            return
+        }
+        guardandoCambio = true
+        val onResultado: (Boolean, String?) -> Unit = { correcto, error ->
+            guardandoCambio = false
+            if (Firebase.auth.currentUser?.uid == uid && usuarioDelCarrito == uid) {
+                if (correcto) {
+                    val index = cartItems.indexOfFirst { it.book.id == libroId }
+                    if (cantidadNueva == 0) {
+                        if (index >= 0) cartItems.removeAt(index)
+                    } else {
+                        val libro = booksList.find { it.id == libroId }
+                        if (libro != null) {
+                            if (index >= 0) {
+                                cartItems[index] = cartItems[index].copy(quantity = cantidadNueva)
+                            } else {
+                                cartItems.add(CartItem(libro, cantidadNueva))
+                            }
+                        }
+                    }
+                } else {
+                    avisar("No se guardó el cambio: ${error ?: "error de conexión"}")
+                }
+            }
+        }
+        if (cantidadNueva == 0) {
+            bd.eliminarProductoCarrito(libroId, onResultado)
+        } else {
+            bd.guardarProductoCarrito(libroId, cantidadNueva, onResultado)
+        }
+    }
+
     NavHost(
         navController = navController,
         startDestination = Screen.Welcome.route
     ) {
-
-        // PANTALLA DE BIENVENIDA
         composable(Screen.Welcome.route) {
-
             WelcomeScreen(
-
-                // Abre el inicio de sesión y retira Welcome del historial.
-                onLogin = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Welcome.route) {
-                            inclusive = true
-                        }
-                    }
-                },
-
-                // Permite acceder directamente al registro.
-                onRegister = {
-                    navController.navigate(Screen.Register.route) {
-                        popUpTo(Screen.Welcome.route) {
-                            inclusive = true
-                        }
-                    }
-                }
+                onLogin = { navController.navigate(Screen.Login.route) {
+                    popUpTo(Screen.Welcome.route) { inclusive = true }
+                } },
+                onRegister = { navController.navigate(Screen.Register.route) {
+                    popUpTo(Screen.Welcome.route) { inclusive = true }
+                } }
             )
         }
 
-        // PANTALLA DE INICIO DE SESIÓN
         composable(Screen.Login.route) {
-
             LoginScreen(
-
-                // Si la autenticación es correcta, abre el catálogo.
                 onNavigateToHome = {
+                    cargarCarritoDeUsuario()
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
+                        popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-
-                // Abre el formulario para crear una cuenta nueva.
-                onNavigateToRegister = {
-                    navController.navigate(Screen.Register.route)
-                }
+                onNavigateToRegister = { navController.navigate(Screen.Register.route) }
             )
         }
 
-        // PANTALLA DE REGISTRO
         composable(Screen.Register.route) {
-
             RegisterScreen(
-
-                // Después del registro, dirige al usuario al catálogo.
                 onRegisterSuccess = {
+                    cargarCarritoDeUsuario()
                     navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) {
-                            inclusive = true
-                        }
+                        popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-
-                // Regresa a la pantalla anterior.
-                onNavigateToLogin = {
-                    navController.popBackStack()
-                }
+                onNavigateToLogin = { navController.popBackStack() }
             )
         }
 
-        // PANTALLA PRINCIPAL
         composable(Screen.Home.route) {
-
             HomeScreen(
                 booksList = booksList,
-
-                // Cierra la vista actual y regresa al inicio de sesión.
                 onLogout = {
-                    // Cierra la sesión real de Firebase antes de volver al login.
-                    FirebaseAuth.getInstance().signOut()
+                    Firebase.auth.signOut()
+                    cartItems.clear() // Solo memoria local: NO se elimina el carrito remoto.
+                    usuarioDelCarrito = null
                     selectedBookId = null
-                    cartItems.clear()
+                    cargandoCarrito = false
+                    guardandoCambio = false
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Home.route) {
-                            inclusive = true
-                        }
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
-
-                // Guarda el libro seleccionado antes de abrir sus detalles.
                 onBookClick = { book ->
                     selectedBookId = book.id
-
-                    navController.navigate(
-                        Screen.BookDetail.route
-                    )
+                    navController.navigate(Screen.BookDetail.route)
                 },
-
-                // Abre el carrito de compras.
-                onCartClick = {
-                    navController.navigate(Screen.Cart.route)
-                },
-
-                // Calcula la cantidad total de ejemplares en el carrito.
-                cartItemCount = cartItems.sumOf {
-                    it.quantity
-                }
+                onCartClick = { navController.navigate(Screen.Cart.route) },
+                onHistoryClick = { navController.navigate(Screen.History.route) },
+                cartItemCount = cartItems.sumOf { it.quantity }
             )
         }
 
-        // PANTALLA DE DETALLES DEL LIBRO
         composable(Screen.BookDetail.route) {
-
-            // Busca el libro seleccionado dentro del catálogo.
-            val currentBook = booksList.find {
-                it.id == selectedBookId
-            }
-
-            currentBook?.let { book ->
-
+            booksList.find { it.id == selectedBookId }?.let { book ->
                 BookDetailScreen(
                     book = book,
-
-                    // Regresa a la pantalla anterior.
-                    onBackClick = {
-                        navController.popBackStack()
-                    },
-
-                    /**
-                     * Agrega un libro al carrito.
-                     *
-                     * Si ya existe, aumenta su cantidad.
-                     * Si no existe, crea un nuevo producto.
-                     */
+                    onBackClick = { navController.popBackStack() },
                     onAddToCart = { addedBook, quantity ->
+                        val actual = cartItems.find { it.book.id == addedBook.id }?.quantity ?: 0
+                        val nueva = actual + quantity
 
-                        // Consulta las existencias actuales del catálogo.
-                        val availableStock = booksList.find {
-                            it.id == addedBook.id
-                        }?.stock ?: 0
-
-                        // Busca si el libro ya fue agregado al carrito.
-                        val existingIndex = cartItems.indexOfFirst {
-                            it.book.id == addedBook.id
-                        }
-
-                        if (existingIndex != -1) {
-
-                            val existingItem = cartItems[existingIndex]
-
-                            // Calcula la cantidad sin superar las existencias.
-                            val newQuantity = (
-                                    existingItem.quantity + quantity
-                                    ).coerceAtMost(availableStock)
-
-                            // Reemplaza el elemento para actualizar la interfaz.
-                            cartItems[existingIndex] = existingItem.copy(
-                                quantity = newQuantity
+                        when {
+                            quantity <= 0 -> avisar("Seleccioná una cantidad válida")
+                            nueva > addedBook.stock -> avisar(
+                                "Solo hay ${addedBook.stock} ejemplares disponibles. Ya tenés $actual en el carrito."
                             )
-
-                        } else if (quantity > 0 && availableStock > 0) {
-
-                            // Agrega un nuevo libro con una cantidad válida.
-                            cartItems.add(
-                                CartItem(
-                                    addedBook,
-                                    quantity.coerceAtMost(availableStock)
-                                )
-                            )
+                            else -> cambiarCantidad(addedBook.id, nueva)
                         }
                     }
                 )
             }
         }
 
-        // PANTALLA DEL CARRITO DE COMPRAS
         composable(Screen.Cart.route) {
-
             CartScreen(
                 cartItems = cartItems,
-
-                /**
-                 * Aumenta la cantidad de un producto.
-                 * Comprueba que todavía existan ejemplares disponibles.
-                 */
                 onIncreaseQuantity = { item ->
-
-                    val index = cartItems.indexOf(item)
-
-                    val bookInCatalog = booksList.find {
-                        it.id == item.book.id
-                    }
-
-                    if (
-                        index != -1 &&
-                        bookInCatalog != null &&
-                        item.quantity < bookInCatalog.stock
-                    ) {
-                        cartItems[index] = item.copy(
-                            quantity = item.quantity + 1
-                        )
-                    }
+                    val stock = booksList.find { it.id == item.book.id }?.stock ?: 0
+                    if (item.quantity < stock) cambiarCantidad(item.book.id, item.quantity + 1)
+                    else avisar("No hay más existencias")
                 },
-
-                /**
-                 * Disminuye la cantidad seleccionada.
-                 *
-                 * Si queda una sola unidad y se disminuye,
-                 * el producto se elimina del carrito.
-                 */
                 onDecreaseQuantity = { item ->
-
-                    val index = cartItems.indexOf(item)
-
-                    if (index != -1) {
-
-                        if (item.quantity > 1) {
-
-                            cartItems[index] = item.copy(
-                                quantity = item.quantity - 1
-                            )
-
-                        } else {
-
-                            cartItems.removeAt(index)
-                        }
-                    }
+                    cambiarCantidad(item.book.id, (item.quantity - 1).coerceAtLeast(0))
                 },
-
-                // Elimina completamente un libro del carrito.
-                onRemoveItem = { item ->
-                    cartItems.remove(item)
-                },
-
-                // Regresa a la pantalla anterior.
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
-                /**
-                 * Procesa la compra de los libros seleccionados.
-                 *
-                 * Descuenta las cantidades del catálogo,
-                 * vacía el carrito y regresa a la pantalla principal.
-                 */
+                onRemoveItem = { item -> cambiarCantidad(item.book.id, 0) },
+                onBackClick = { navController.popBackStack() },
                 onCheckoutClick = {
-
-                    // Recorre todos los productos del carrito.
-                    cartItems.forEach { cartItem ->
-
-                        // Busca la posición del libro en el catálogo.
-                        val index = booksList.indexOfFirst {
-                            it.id == cartItem.book.id
+                    val uid = Firebase.auth.currentUser?.uid
+                    if (uid == null || uid != usuarioDelCarrito || cargandoCarrito || guardandoCambio) {
+                        avisar("Esperá a que tu carrito esté listo")
+                    } else if (cartItems.isEmpty()) {
+                        avisar("El carrito está vacío")
+                    } else {
+                        // Capturamos el estado local ANTES de iniciar una transacción, que
+                        // Firestore puede ejecutar varias veces ante compras concurrentes.
+                        val usuarioCompra = uid
+                        val copiaDeCompra = cartItems.map { it.copy() }
+                        guardandoCambio = true
+                        val db = Firebase.firestore
+                        val orden = db.collection("users").document(uid)
+                            .collection("orders").document()
+                        val referenciasCarrito = copiaDeCompra.map { item ->
+                            db.collection("users").document(uid)
+                                .collection("cart").document(item.book.id)
                         }
 
-                        if (index != -1) {
-
-                            val currentBook = booksList[index]
-
-                            // Calcula las existencias después de la compra.
-                            val newStock = (
-                                    currentBook.stock - cartItem.quantity
-                                    ).coerceAtLeast(0)
-
-                            // Actualiza el libro con su nueva cantidad.
-                            booksList[index] = currentBook.copy(
-                                stock = newStock
-                            )
+                        // Se confirma el pedido y se vacía el carrito en un solo lote.
+                        // El stock sigue siendo local: esta versión no controla inventario compartido.
+                        val total = copiaDeCompra.sumOf { it.book.price * it.quantity }
+                        val unidades = copiaDeCompra.sumOf { it.quantity }
+                        val resumen = copiaDeCompra.joinToString(", ") {
+                            "${it.quantity}x ${it.book.title}"
                         }
-                    }
-
-                    // Vacía el carrito después de procesar la compra.
-                    cartItems.clear()
-
-                    // Regresa al catálogo y limpia la navegación anterior.
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) {
-                            inclusive = true
-                        }
+                        val batch = db.batch()
+                        batch.set(orden, mapOf(
+                            "totalAmount" to total,
+                            "itemsCount" to unidades,
+                            "timestamp" to FieldValue.serverTimestamp(),
+                            "summary" to resumen
+                        ))
+                        referenciasCarrito.forEach { batch.delete(it) }
+                        batch.commit()
+                            .addOnSuccessListener {
+                                guardandoCambio = false
+                                if (Firebase.auth.currentUser?.uid == usuarioCompra &&
+                                    usuarioDelCarrito == usuarioCompra) {
+                                    copiaDeCompra.forEach { item ->
+                                        val index = booksList.indexOfFirst { it.id == item.book.id }
+                                        if (index >= 0) {
+                                            val book = booksList[index]
+                                            booksList[index] = book.copy(
+                                                stock = (book.stock - item.quantity).coerceAtLeast(0)
+                                            )
+                                        }
+                                    }
+                                    cartItems.clear()
+                                    avisar("Compra registrada correctamente")
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Home.route) { inclusive = true }
+                                    }
+                                }
+                            }
+                            .addOnFailureListener { e ->
+                                guardandoCambio = false
+                                Log.e("NavGraph", "No se completó la compra", e)
+                                avisar("Compra no realizada: ${e.localizedMessage ?: "error de Firebase"}. Tu carrito se conserva.")
+                            }
                     }
                 }
             )
+        }
+
+        composable(Screen.History.route) {
+            HistoryScreen(onBackClick = { navController.popBackStack() })
+        }
+    }
+
+    // Diálogo modal: impide cambios mientras se lee/escribe en Firestore,
+    // evitando operaciones concurrentes que dejen cantidades desincronizadas.
+    if (cargandoCarrito || guardandoCambio) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false
+            )
+        ) {
+            Surface {
+                Box(modifier = Modifier.fillMaxSize(0.35f), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
         }
     }
 }
