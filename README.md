@@ -35,7 +35,9 @@ Para ejecutar este proyecto en tu entorno local, sigue estos pasos:
    git clone [https://github.com/TU_USUARIO/BookMaster.git](https://github.com/TU_USUARIO/BookMaster.git)
 
 
-   Abrir en Android Studio:
+
+
+Abrir en Android Studio:
 Abre Android Studio, selecciona File > Open y busca la carpeta del proyecto clonado.
 
 Configurar Firebase:
