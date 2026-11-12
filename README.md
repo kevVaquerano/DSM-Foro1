@@ -1,3 +1,9 @@
+# 📚 Estudiantes: 
+Kevin Arturo Vaquerano Morales  VM223215
+Hayzel Evelyn González Gutiérrez GG240801
+
+
+
 # 📚 BookMaster 
 
 BookMaster es una aplicación móvil de comercio electrónico (e-commerce) para la venta de libros, desarrollada nativamente para Android utilizando **Kotlin**, **Jetpack Compose** y **Firebase**. 
