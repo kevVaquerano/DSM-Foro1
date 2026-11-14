@@ -4,12 +4,18 @@ import android.app.Activity
 import android.media.AudioAttributes
 import android.media.SoundPool
 import android.util.Log
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import android.util.Patterns
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -28,6 +34,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,6 +46,8 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
+import com.dreamteam.bookmaster.data.UserProfileRepository
+import kotlinx.coroutines.delay
 
 /**
  * Pantalla de inicio de sesión de BookMaster.
@@ -49,7 +58,8 @@ import com.google.firebase.ktx.Firebase
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
-    onNavigateToRegister: () -> Unit
+    onNavigateToRegister: () -> Unit,
+    onCompleteProfileNeeded: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -66,6 +76,7 @@ fun LoginScreen(
     // Estados de los campos y del proceso de autenticación.
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -141,35 +152,14 @@ fun LoginScreen(
                                 errorMessage = "No se pudo obtener el usuario."
                             } else {
 
-                                // Guarda los datos básicos del usuario en Firestore.
-                                val userData = mapOf(
-                                    "uid" to user.uid,
-                                    "name" to (
-                                            user.displayName ?: "Usuario de Google"
-                                            ),
-                                    "email" to (user.email ?: ""),
-                                    "provider" to "Google",
-                                    "createdAt" to System.currentTimeMillis()
-                                )
-
-                                firestore.collection("users")
-                                    .document(user.uid)
-                                    .set(userData)
-                                    .addOnCompleteListener { saveTask ->
-
-                                        // El acceso continúa aunque falle
-                                        // el guardado del perfil, como en el original.
-                                        if (!saveTask.isSuccessful) {
-                                            Log.e(
-                                                "BookMasterGoogle",
-                                                "No se pudo guardar el perfil.",
-                                                saveTask.exception
-                                            )
-                                        }
-
-                                        isLoading = false
-                                        onNavigateToHome()
-                                    }
+                                // Nunca reemplazar el perfil existente con .set(userData).
+                                UserProfileRepository.prepareProfile(user, "Google") { complete, error ->
+                                    isLoading = false
+                                    if (error != null) {
+                                        errorMessage = "No se pudo preparar tu perfil: $error"
+                                    } else if (complete) onNavigateToHome()
+                                    else onCompleteProfileNeeded()
+                                }
                             }
                         }
                         .addOnFailureListener { exception ->
@@ -279,6 +269,35 @@ fun LoginScreen(
         }
     }
 
+    // El gatito se sacude brevemente cada 4 segundos mientras no lo tocan.
+    // En el emulador, también se detiene al pasar el cursor por encima.
+    val interaccionGatito = remember { MutableInteractionSource() }
+    val cursorSobreGatito by interaccionGatito.collectIsHoveredAsState()
+    var presionandoGatito by remember { mutableStateOf(false) }
+    val rotacionGatito = remember { Animatable(0f) }
+
+    LaunchedEffect(cursorSobreGatito, presionandoGatito) {
+        if (cursorSobreGatito || presionandoGatito) {
+            rotacionGatito.snapTo(0f)
+        } else {
+            while (true) {
+                delay(3300)
+                rotacionGatito.animateTo(
+                    targetValue = 0f,
+                    animationSpec = keyframes {
+                        durationMillis = 700
+                        0f at 0
+                        -9f at 160
+                        8f at 300
+                        -6f at 440
+                        4f at 560
+                        0f at 700
+                    }
+                )
+            }
+        }
+    }
+
     // Diseño principal de la pantalla de inicio de sesión.
     Box(
         modifier = Modifier
@@ -303,11 +322,15 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
+            // Espacio sobre el nombre de la aplicación.
+            Spacer(modifier = Modifier.height(15.dp))
+
             // Nombre principal de la aplicación.
             Text(
                 text = "BookMaster",
-                fontSize = 27.sp,
+                fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
+                letterSpacing = 4.5.sp,
                 color = moradoOscuro
             )
 
@@ -326,6 +349,8 @@ fun LoginScreen(
                     "Gatito: toca para maullar o mantén presionado para ronronear",
                 modifier = Modifier
                     .size(145.dp)
+                    .graphicsLayer { rotationZ = rotacionGatito.value }
+                    .hoverable(interaccionGatito)
                     .pointerInput(
                         reproductorGato,
                         maullidoListo,
@@ -355,9 +380,11 @@ fun LoginScreen(
                                 }
                             },
                             onPress = {
+                                presionandoGatito = true
                                 try {
                                     tryAwaitRelease()
                                 } finally {
+                                    presionandoGatito = false
                                     if (canalRonroneo != 0) {
                                         reproductorGato.stop(canalRonroneo)
                                         canalRonroneo = 0
@@ -372,13 +399,13 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Inicia Sesión:",
+                text = "Iniciar sesión:",
                 color = moradoOscuro,
-                fontSize = 17.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(25.dp))
 
             // Campo para ingresar el correo electrónico.
             Text(
@@ -396,6 +423,7 @@ fun LoginScreen(
                     email = it
                     errorMessage = null
                 },
+                placeholder = { Text("Ingresa tu correo electrónico", fontSize = 14.sp) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
@@ -430,14 +458,32 @@ fun LoginScreen(
                     password = it
                     errorMessage = null
                 },
+                placeholder = { Text("Ingresa tu contraseña", fontSize = 14.sp) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (showPassword) {
+                    VisualTransformation.None
+                } else {
+                    PasswordVisualTransformation()
+                },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password
                 ),
+                trailingIcon = {
+                    IconButton(onClick = { showPassword = !showPassword }) {
+                        Icon(
+                            painter = painterResource(
+                                if (showPassword) R.drawable.ic_visibility
+                                else R.drawable.ic_visibility_off
+                            ),
+                            contentDescription = if (showPassword) "Ocultar contraseña" else "Mostrar contraseña",
+                            tint = moradoOscuro,
+                            modifier = Modifier.size(23.dp)
+                        )
+                    }
+                },
                 shape = RoundedCornerShape(9.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = fondoCampo,
@@ -482,9 +528,19 @@ fun LoginScreen(
                                 email.trim(),
                                 password
                             )
-                                .addOnSuccessListener {
-                                    isLoading = false
-                                    onNavigateToHome()
+                                .addOnSuccessListener { result ->
+                                    val user = result.user
+                                    if (user == null) {
+                                        isLoading = false
+                                        errorMessage = "No se encontró el usuario autenticado"
+                                    } else {
+                                        UserProfileRepository.prepareProfile(user, "password") { complete, error ->
+                                            isLoading = false
+                                            if (error != null) errorMessage = "No se pudo preparar tu perfil: $error"
+                                            else if (complete) onNavigateToHome()
+                                            else onCompleteProfileNeeded()
+                                        }
+                                    }
                                 }
                                 .addOnFailureListener { exception ->
                                     isLoading = false
@@ -518,7 +574,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(25.dp))
 
             // Separador visual entre las dos opciones de acceso.
             Row(
@@ -540,7 +596,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(21.dp))
 
             // Inicia el proceso de autenticación con Google.
             OutlinedButton(
@@ -585,12 +641,12 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.width(10.dp))
 
                 Text(
-                    text = "Sign in with Google",
+                    text = "Continuar con Google",
                     color = Color(0xFF333333)
                 )
             }
 
-            Spacer(modifier = Modifier.height(17.dp))
+            Spacer(modifier = Modifier.height(21.dp))
 
             // Opción para crear una cuenta nueva.
             Text(

@@ -31,6 +31,7 @@ sealed class Screen(val route: String) {
     object BookDetail : Screen("book_detail")
     object Cart : Screen("cart")
     object History : Screen("history_screen")
+    object CompleteProfile : Screen("complete_profile")
 }
 
 @Composable
@@ -161,8 +162,22 @@ fun NavGraph() {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                onNavigateToRegister = { navController.navigate(Screen.Register.route) }
+                onNavigateToRegister = { navController.navigate(Screen.Register.route) },
+                onCompleteProfileNeeded = {
+                    navController.navigate(Screen.CompleteProfile.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
             )
+        }
+
+        composable(Screen.CompleteProfile.route) {
+            CompleteProfileScreen(onComplete = {
+                cargarCarritoDeUsuario()
+                navController.navigate(Screen.Home.route) {
+                    popUpTo(Screen.CompleteProfile.route) { inclusive = true }
+                }
+            })
         }
 
         composable(Screen.Register.route) {
@@ -173,7 +188,16 @@ fun NavGraph() {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
-                onNavigateToLogin = { navController.popBackStack() }
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
+                onCompleteProfileNeeded = {
+                    navController.navigate(Screen.CompleteProfile.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                }
             )
         }
 
