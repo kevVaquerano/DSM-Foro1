@@ -303,11 +303,14 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(lilaFondo)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 16.dp),
         contentAlignment = Alignment.Center
     ) {
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -495,7 +498,7 @@ fun LoginScreen(
 
             // Presenta los mensajes de validación o autenticación.
             errorMessage?.let { error ->
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
                     text = error,
@@ -505,7 +508,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Comprueba los datos y solicita el acceso con Firebase.
             Button(
@@ -568,7 +571,7 @@ fun LoginScreen(
                     )
                 } else {
                     Text(
-                        text = "Iniciar Sesión",
+                        text = "Iniciar sesión",
                         fontWeight = FontWeight.Bold
                     )
                 }

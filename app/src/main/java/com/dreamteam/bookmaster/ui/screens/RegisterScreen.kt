@@ -53,6 +53,7 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 
 /** Registro con correo y Google, manteniendo los perfiles existentes de BookMaster. */
 @Composable
@@ -105,13 +106,27 @@ fun RegisterScreen(
         }
     }
 
-
     val birthPicker = remember(context) {
         DatePickerDialog(context, { _, year, month, day ->
-            birthDate = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, day)
+            birthDate = String.format(
+                Locale.US,
+                "%04d-%02d-%02d",
+                year,
+                month + 1,
+                day
+            )
             errorMessage = null
         }, 2000, 0, 1).apply {
-            datePicker.maxDate = System.currentTimeMillis()
+
+            // Permitir únicamente fechas anteriores a hoy.
+            val inicioDeHoy = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.timeInMillis
+
+            datePicker.maxDate = inicioDeHoy - 1L
         }
     }
 
@@ -224,8 +239,13 @@ fun RegisterScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(fondoLila)
-            .imePadding().verticalScroll(rememberScrollState())
+        modifier = Modifier
+            .fillMaxSize()
+            .background(fondoLila)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 18.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -386,7 +406,7 @@ fun RegisterScreen(
             errorMessage?.let {
                 Text(it, color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(10.dp))
+                Spacer(Modifier.height(20.dp))
             }
 
             Button(
