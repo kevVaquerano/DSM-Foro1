@@ -3,7 +3,6 @@ package com.dreamteam.bookmaster.data
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.SetOptions
-import com.google.firebase.firestore.Source
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
@@ -11,36 +10,67 @@ import com.google.firebase.ktx.Firebase
 object UserProfileRepository {
     private val db get() = Firebase.firestore
 
-    /** Una cuenta sin datos completos debe pasar a CompleteProfileScreen. */
+    /**
+     * Prepara el perfil en una transacción y SOLO agrega campos ausentes.
+     * Una cuenta con membresía previa nunca pierde puntos ni nivel al iniciar sesión.
+     * Esta inicialización NO acredita puntos por compras.
+     */
     fun prepareProfile(user: FirebaseUser, provider: String, callback: (Boolean, String?) -> Unit) {
         val ref = db.collection("users").document(user.uid)
-        ref.get(Source.SERVER)
-            .addOnSuccessListener { doc ->
-                val missing = mutableMapOf<String, Any>()
-                if (!doc.exists()) {
-                    missing["uid"] = user.uid
-                    missing["email"] = user.email.orEmpty()
-                    missing["provider"] = provider
-                    missing["role"] = "customer"
-                    missing["createdAt"] = FieldValue.serverTimestamp()
-                } else {
-                    // Nunca reescribir role, createdAt, name, firstName ni lastName existentes.
-                    if (!doc.contains("role")) missing["role"] = "customer"
-                    if (!doc.contains("email") && user.email != null) missing["email"] = user.email!!
-                    if (!doc.contains("provider")) missing["provider"] = provider
+        db.runTransaction { transaction ->
+            val doc = transaction.get(ref)
+            val missing = mutableMapOf<String, Any>()
+            if (!doc.exists()) {
+                missing["uid"] = user.uid
+                missing["email"] = user.email.orEmpty()
+                missing["provider"] = provider
+                missing["role"] = "customer"
+                missing["createdAt"] = FieldValue.serverTimestamp()
+                missing["membershipLevel"] = "BRONCE"
+                missing["loyaltyPoints"] = 0L
+            } else {
+                if (!doc.contains("role")) missing["role"] = "customer"
+                if (!doc.contains("email") && user.email != null) missing["email"] = user.email!!
+                if (!doc.contains("provider")) missing["provider"] = provider
+
+                // Nunca inicializar membresía en cuentas administrativas.
+                if (doc.getString("role") == null || doc.getString("role") == "customer") {
+                    val pointsRaw = doc.get("loyaltyPoints")
+                    val points = when (pointsRaw) {
+                        is Number -> pointsRaw.toLong()
+                        is String -> pointsRaw.trim().toLongOrNull()
+                        else -> null
+                    }?.takeIf { it >= 0L }
+                    val storedTier = doc.getString("membershipLevel")
+                        ?.trim()?.uppercase(java.util.Locale.ROOT)
+                    val validTier = storedTier in setOf("BRONCE", "PLATA", "ORO")
+                    when {
+                        !doc.contains("loyaltyPoints") && !validTier -> {
+                            missing["loyaltyPoints"] = 0L
+                            missing["membershipLevel"] = "BRONCE"
+                        }
+                        !doc.contains("loyaltyPoints") && storedTier == "BRONCE" -> {
+                            missing["loyaltyPoints"] = 0L
+                        }
+                        points != null && !validTier -> {
+                            missing["membershipLevel"] = when {
+                                points >= 500L -> "ORO"
+                                points >= 200L -> "PLATA"
+                                else -> "BRONCE"
+                            }
+                        }
+                        // Si falta el saldo en una cuenta Plata/Oro, NO inventar 0 puntos.
+                    }
                 }
-                fun ready() {
-                    val first = doc.getString("firstName").orEmpty().trim()
-                    val last = doc.getString("lastName").orEmpty().trim()
-                    val birth = doc.getString("birthDate").orEmpty().trim()
-                    callback(first.isNotBlank() && last.isNotBlank() && isValidBirthDate(birth), null)
-                }
-                if (missing.isEmpty()) ready()
-                else ref.set(missing, SetOptions.merge())
-                    .addOnSuccessListener { ready() }
-                    .addOnFailureListener { callback(false, it.localizedMessage ?: "No se pudo preparar el perfil") }
             }
-            .addOnFailureListener { callback(false, it.localizedMessage ?: "No se pudo consultar el perfil") }
+            if (missing.isNotEmpty()) transaction.set(ref, missing, SetOptions.merge())
+            doc.getString("firstName").orEmpty().isNotBlank() &&
+                    doc.getString("lastName").orEmpty().isNotBlank() &&
+                    isValidBirthDate(doc.getString("birthDate").orEmpty())
+        }.addOnSuccessListener { complete -> callback(complete, null) }
+            .addOnFailureListener { e ->
+                callback(false, e.localizedMessage ?: "No se pudo preparar el perfil")
+            }
     }
 
     fun savePersonalInfo(
@@ -60,6 +90,48 @@ object UserProfileRepository {
             .set(update, SetOptions.merge())
             .addOnSuccessListener { callback(true, null) }
             .addOnFailureListener { callback(false, it.localizedMessage ?: "No se pudo guardar el perfil") }
+    }
+
+    /** Actualiza exclusivamente nombres y apellidos; no escribe fecha de nacimiento ni rol. */
+    fun updateNames(
+        user: FirebaseUser,
+        firstName: String,
+        lastName: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        if (firstName.isBlank() || lastName.isBlank()) {
+            callback(false, "Ingresá nombres y apellidos válidos.")
+            return
+        }
+        db.collection("users").document(user.uid)
+            .update(mapOf("firstName" to firstName.trim(), "lastName" to lastName.trim()))
+            .addOnSuccessListener { callback(true, null) }
+            .addOnFailureListener { callback(false, it.localizedMessage ?: "No se pudieron guardar los nombres.") }
+    }
+
+    /** Guarda nombres y dirección habitual sin alterar nacimiento, correo, rol o compras. */
+    fun updateNamesAndAddress(
+        user: FirebaseUser,
+        firstName: String,
+        lastName: String,
+        homeAddress: String,
+        callback: (Boolean, String?) -> Unit
+    ) {
+        val first = firstName.trim()
+        val last = lastName.trim()
+        val address = homeAddress.trim()
+        if (first.isBlank() || last.isBlank()) {
+            callback(false, "Ingresá nombres y apellidos válidos.")
+            return
+        }
+        if (address.length > 300) {
+            callback(false, "La dirección debe tener como máximo 300 caracteres.")
+            return
+        }
+        db.collection("users").document(user.uid)
+            .update(mapOf("firstName" to first, "lastName" to last, "homeAddress" to address))
+            .addOnSuccessListener { callback(true, null) }
+            .addOnFailureListener { callback(false, it.localizedMessage ?: "No se pudo actualizar el perfil.") }
     }
 
     fun isValidBirthDate(value: String): Boolean = try {

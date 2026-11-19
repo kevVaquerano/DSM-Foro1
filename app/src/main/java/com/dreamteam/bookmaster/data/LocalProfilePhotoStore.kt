@@ -1,4 +1,3 @@
-
 package com.dreamteam.bookmaster.data
 
 import android.content.Context
@@ -85,6 +84,12 @@ object LocalProfilePhotoStore {
     } catch (_: Exception) {
         false
     }
+
+    /** Quita la imagen local sin afectar el perfil almacenado en Firestore. */
+    fun delete(context: Context, uid: String): Boolean = try {
+        val file = fileFor(context, uid)
+        !file.exists() || file.delete()
+    } catch (_: Exception) { false }
 
     fun load(context: Context, uid: String): Bitmap? = try {
         val file = fileFor(context, uid)

@@ -1,14 +1,9 @@
 package com.dreamteam.bookmaster.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 
 /**
  * Define los esquemas de colores de BookMaster.
@@ -17,18 +12,31 @@ import androidx.compose.ui.platform.LocalContext
  * al modo claro u oscuro del dispositivo.
  */
 
-// Colores principales utilizados cuando está activo el modo oscuro.
+// Colores de la marca: no dependen del fondo de pantalla del teléfono.
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = BookMasterPurple,
+    onPrimary = androidx.compose.ui.graphics.Color.White,
+    secondary = BookMasterLightPurple,
+    onSecondary = BookMasterDarkPurple,
+    background = BookMasterDarkPurple,
+    onBackground = androidx.compose.ui.graphics.Color.White,
+    surface = BookMasterDarkPurple,
+    onSurface = androidx.compose.ui.graphics.Color.White
 )
 
-// Colores principales utilizados cuando está activo el modo claro.
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary = BookMasterPurple,
+    onPrimary = androidx.compose.ui.graphics.Color.White,
+    secondary = BookMasterLightPurple,
+    onSecondary = BookMasterDarkPurple,
+    tertiary = BookMasterDarkPurple,
+    background = BookMasterBackground,
+    onBackground = BookMasterDarkPurple,
+    surface = androidx.compose.ui.graphics.Color.White,
+    onSurface = BookMasterDarkPurple,
+    surfaceVariant = BookMasterLightPurple,
+    onSurfaceVariant = BookMasterMutedText,
+    outline = BookMasterPurple
 )
 
 /**
@@ -41,30 +49,14 @@ private val LightColorScheme = lightColorScheme(
  */
 @Composable
 fun DSM_LibreriaTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = false,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // Comprueba qué esquema de colores debe utilizarse.
-    val colorScheme = when {
-
-        // Utiliza los colores dinámicos del sistema si están disponibles.
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-
-            if (darkTheme) {
-                dynamicDarkColorScheme(context)
-            } else {
-                dynamicLightColorScheme(context)
-            }
-        }
-
-        // Aplica los colores definidos para el modo oscuro.
-        darkTheme -> DarkColorScheme
-
-        // Utiliza los colores del modo claro en los demás casos.
-        else -> LightColorScheme
-    }
+    // El modo predeterminado es claro; se mantiene darkTheme como opción futura.
+    // dynamicColor se conserva en la firma por compatibilidad, pero no se aplica:
+    // una paleta dinámica volvería a alterar la identidad visual morada.
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
     // Aplica los colores y la tipografía a todos los componentes hijos.
     MaterialTheme(

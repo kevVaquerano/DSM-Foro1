@@ -1,9 +1,11 @@
 package com.dreamteam.bookmaster.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -16,10 +18,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.dreamteam.bookmaster.R
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.Locale
+import com.dreamteam.bookmaster.ui.theme.BookMasterPurple
+import com.dreamteam.bookmaster.ui.theme.BookMasterDarkPurple
+import com.dreamteam.bookmaster.ui.theme.BookMasterBackground
 
 /**
  * Modelo que almacena la información de cada libro.
@@ -33,7 +45,11 @@ data class Book(
     val rating: Double,
     val price: Double,
     val stock: Int,
-    val colorBackground: Color
+    val colorBackground: Color,
+    val minimumAge: Int = 0,
+    val publicationYear: Int = 0,
+    val description: String = "",
+    val imageUrl: String = ""
 )
 
 /**
@@ -54,16 +70,12 @@ data class CartItem(
 @Composable
 fun HomeScreen(
     booksList: List<Book>,
-    onLogout: () -> Unit,
-    onBookClick: (Book) -> Unit,
-    onCartClick: () -> Unit,
-    onHistoryClick: () -> Unit,
-    cartItemCount: Int
+    onBookClick: (Book) -> Unit
 ) {
     // Colores principales de la interfaz.
-    val primaryBlue = Color(0xFF7952B5)
-    val darkBlueText = Color(0xFF473071)
-    val backgroundGray = Color(0xFFFCFAFF)
+    val primaryBlue = BookMasterPurple
+    val darkBlueText = BookMasterDarkPurple
+    val backgroundGray = BookMasterBackground
 
     // Guarda el texto que escribe el usuario en la búsqueda.
     var searchQuery by remember {
@@ -79,12 +91,29 @@ fun HomeScreen(
     val categories = remember {
         listOf(
             "Todos",
-            "Ficción",
-            "Desarrollo",
-            "Historia",
-            "Novelas"
+            "Infantil",
+            "Desarrollo Personal",
+            "Ciencia Ficción",
+            "Terror",
+            "Romance",
+            "Historia"
         )
     }
+
+    // Saludo basado en la hora local del dispositivo al abrir la pantalla.
+    val horaActual = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val saludo = when (horaActual) {
+        in 5..11 -> "Buenos días"
+        in 12..18 -> "Buenas tardes"
+        else -> "Buenas noches"
+    }
+    val contexto = LocalContext.current
+    // Logo ya utilizado en la pantalla de bienvenida; si no existe, no falla.
+    val logoId = remember(contexto.packageName) {
+        contexto.resources.getIdentifier("bookmaster_icon1", "drawable", contexto.packageName)
+    }
+    val carouselState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
 
     // Filtra los libros según el texto y la categoría elegida.
     // La búsqueda no distingue entre mayúsculas y minúsculas.
@@ -112,108 +141,27 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Encabezado principal con el nombre de la aplicación.
+            // Saludo simple: misma posición del encabezado original, sin tarjeta ni fondo.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
+                    .height(64.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "¡Hola de nuevo! 👋",
-                        fontSize = 14.sp,
-                        color = Color.Gray
+                Text(
+                    text = saludo,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = darkBlueText
+                )
+                if (logoId != 0) {
+                    Image(
+                        painter = painterResource(logoId),
+                        contentDescription = "Logo de BookMaster",
+                        modifier = Modifier.size(52.dp),
+                        contentScale = ContentScale.Fit
                     )
-
-                    Text(
-                        text = "BookMaster",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = darkBlueText
-                    )
-                }
-
-                // Agrupa los accesos al historial, al carrito y al cierre de sesión.
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    // Abre la pantalla del historial de compras.
-                    IconButton(
-                        onClick = onHistoryClick,
-                        modifier = Modifier
-                            .background(
-                                Color.White,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .shadow(
-                                2.dp,
-                                RoundedCornerShape(12.dp)
-                            )
-                    ) {
-                        Text(
-                            text = "📜",
-                            fontSize = 18.sp
-                        )
-                    }
-
-                    // Muestra la cantidad de productos del carrito.
-                    BadgedBox(
-                        badge = {
-                            if (cartItemCount > 0) {
-                                Badge(
-                                    containerColor = Color.Red,
-                                    contentColor = Color.White
-                                ) {
-                                    Text(
-                                        text = "$cartItemCount"
-                                    )
-                                }
-                            }
-                        }
-                    ) {
-                        // Abre la pantalla del carrito de compras.
-                        IconButton(
-                            onClick = onCartClick,
-                            modifier = Modifier
-                                .background(
-                                    Color.White,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .shadow(
-                                    2.dp,
-                                    RoundedCornerShape(12.dp)
-                                )
-                        ) {
-                            Text(
-                                text = "🛒",
-                                fontSize = 20.sp
-                            )
-                        }
-                    }
-
-                    // Permite cerrar la sesión actual.
-                    Button(
-                        onClick = onLogout,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFFEBEE)
-                        ),
-                        contentPadding = PaddingValues(
-                            horizontal = 12.dp,
-                            vertical = 6.dp
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text(
-                            text = "Salir 🚪",
-                            color = Color.Red,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
                 }
             }
 
@@ -236,10 +184,19 @@ fun HomeScreen(
                         RoundedCornerShape(16.dp)
                     ),
                 placeholder = {
-                    Text("Buscar libro o autor...")
+                    Text(
+                        text = "Buscar libro o autor...",
+                        color = Color(0xFFB0A8BA),
+                        fontSize = 16.sp
+                    )
                 },
                 leadingIcon = {
-                    Text("🔍")
+                    Icon(
+                        painter = painterResource(R.drawable.ic_home_search),
+                        contentDescription = "Buscar",
+                        tint = BookMasterDarkPurple,
+                        modifier = Modifier.size(21.dp)
+                    )
                 },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
@@ -255,6 +212,7 @@ fun HomeScreen(
 
             // Lista horizontal para seleccionar categorías.
             LazyRow(
+                state = carouselState,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -266,6 +224,11 @@ fun HomeScreen(
                         selected = isSelected,
                         onClick = {
                             selectedCategory = category
+                            scope.launch {
+                                // Desplaza el carrusel suavemente para acompañar la elección.
+                                val index = categories.indexOf(category)
+                                carouselState.animateScrollToItem((index - 1).coerceAtLeast(0))
+                            }
                         },
                         label = {
                             Text(
@@ -294,7 +257,7 @@ fun HomeScreen(
             // Actualiza el encabezado según la categoría seleccionada.
             Text(
                 text = if (selectedCategory == "Todos") {
-                    "Catálogo de Libros"
+                    "Catálogo de libros"
                 } else {
                     "Categoría: $selectedCategory"
                 },
@@ -326,6 +289,7 @@ fun HomeScreen(
                     columns = GridCells.Fixed(2),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 88.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     // Crea una tarjeta por cada libro disponible en el filtro.
@@ -356,8 +320,15 @@ fun BookCard(
     onClick: () -> Unit
 ) {
     // Colores usados para destacar la información del libro.
-    val darkBlueText = Color(0xFF473071)
-    val priceGreen = Color(0xFF2E7D32)
+    val darkBlueText = BookMasterDarkPurple
+    val priceGreen = BookMasterDarkPurple
+
+    // Usa el ID de Firestore para buscar la portada local en res/drawable.
+    // Ejemplo: books/libro_001 -> drawable/libro_001.jpg (o png/webp).
+    val context = LocalContext.current
+    val coverResource = remember(book.id) {
+        context.resources.getIdentifier(book.id, "drawable", context.packageName)
+    }
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -374,34 +345,66 @@ fun BookCard(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Portada representativa con el color asignado al libro.
+            // Vista previa del tercio superior de la portada, donde suele estar el título.
+            // Crop recorta sin deformar y TopCenter evita centrar el recorte vertical.
+            // BookDetailScreen mantiene ContentScale.Fit para la portada completa.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(145.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(book.colorBackground),
+                    .background(Color(0xFFF1F3F6)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "📖",
-                    fontSize = 38.sp
-                )
+                if (coverResource != 0) {
+                    Image(
+                        painter = painterResource(id = coverResource),
+                        contentDescription = "Portada de ${book.title}",
+                        modifier = Modifier.fillMaxSize().padding(7.dp).clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter
+                    )
+                } else {
+                    // Si falta alguna imagen, la tarjeta sigue funcionando.
+                    Text(text = "📖", fontSize = 38.sp)
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Muestra el título y limita su extensión a una línea.
-            Text(
-                text = book.title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = darkBlueText
-            )
-
-            // Nombre del autor del libro.
+            // Distribución: título / calificación, autor, precio / stock.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    text = book.title,
+                    modifier = Modifier.weight(1f),
+                    fontSize = 14.sp,
+                    lineHeight = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = darkBlueText
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_book_rating_star),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = Color(0xFFFFB300)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Text(
+                        text = String.format(Locale.US, "%.1f", book.rating),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = darkBlueText
+                    )
+                }
+            }
+            Spacer(Modifier.height(5.dp))
             Text(
                 text = book.author,
                 fontSize = 12.sp,
@@ -409,55 +412,26 @@ fun BookCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Calificación asignada al libro.
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "⭐ ",
-                    fontSize = 11.sp
-                )
-
-                Text(
-                    text = book.rating.toString(),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.DarkGray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Presenta el precio y el número de ejemplares disponibles.
+            Spacer(Modifier.height(17.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
-                // Precio unitario del libro.
                 Text(
-                    text = "$${String.format("%.2f", book.price)}",
-                    fontSize = 14.sp,
+                    text = "$${String.format(Locale.US, "%.2f", book.price)}",
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = priceGreen
                 )
-
-                // Indica las existencias o si el libro está agotado.
                 Text(
-                    text = if (book.stock > 0) {
-                        "Stock: ${book.stock}"
-                    } else {
-                        "Agotado"
-                    },
+                    text = if (book.stock > 0) "Stock: ${book.stock}" else "Agotado",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (book.stock > 0) {
-                        Color.Gray
-                    } else {
-                        Color.Red
+                    color = when {
+                        book.stock < 10 -> Color(0xFFC62828)
+                        book.stock == 10 -> Color(0xFF9A6700)
+                        else -> Color(0xFF2E7D32)
                     }
                 )
             }

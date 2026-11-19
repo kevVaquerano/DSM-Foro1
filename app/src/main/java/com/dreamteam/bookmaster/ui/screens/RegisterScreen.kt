@@ -447,6 +447,8 @@ fun RegisterScreen(
                                             "email" to email.trim(),
                                             "provider" to "password",
                                             "role" to "customer",
+                                            "membershipLevel" to "BRONCE",
+                                            "loyaltyPoints" to 0L,
                                             "createdAt" to FieldValue.serverTimestamp()
                                         )
                                         firestore.collection("users").document(uid)

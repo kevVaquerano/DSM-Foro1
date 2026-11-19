@@ -21,6 +21,10 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import java.text.SimpleDateFormat
 import java.util.*
+import com.dreamteam.bookmaster.ui.theme.BookMasterDarkPurple
+import com.dreamteam.bookmaster.ui.theme.BookMasterPurple
+import com.dreamteam.bookmaster.ui.theme.BookMasterBackground
+import com.dreamteam.bookmaster.ui.theme.BookMasterLightPurple
 
 // Estructura para almacenar los datos que descargamos de Firebase
 data class OrderHistory(
@@ -35,8 +39,8 @@ fun HistoryScreen(onBackClick: () -> Unit) {
     var orders by remember { mutableStateOf<List<OrderHistory>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    val darkBlueText = Color(0xFF0D1B2A)
-    val backgroundGray = Color(0xFFF5F6F8)
+    val darkBlueText = BookMasterDarkPurple
+    val backgroundGray = BookMasterBackground
 
     // Descarga de datos en tiempo real al abrir la pantalla
     LaunchedEffect(Unit) {
@@ -109,7 +113,7 @@ fun HistoryScreen(onBackClick: () -> Unit) {
             // Lógica de visualización
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF42A5F5))
+                    CircularProgressIndicator(color = BookMasterPurple)
                 }
             } else if (orders.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize().weight(1f), contentAlignment = Alignment.Center) {
@@ -157,7 +161,7 @@ fun OrderCard(order: OrderHistory) {
                 Text(
                     text = "${order.itemsCount} artículos",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF42A5F5),
+                    color = BookMasterPurple,
                     fontSize = 12.sp
                 )
             }
@@ -167,12 +171,12 @@ fun OrderCard(order: OrderHistory) {
             Text(
                 text = order.summary,
                 fontSize = 14.sp,
-                color = Color(0xFF0D1B2A),
+                color = BookMasterDarkPurple,
                 lineHeight = 20.sp
             )
 
             Spacer(modifier = Modifier.height(12.dp))
-            Divider(color = Color(0xFFF5F6F8))
+            Divider(color = BookMasterBackground)
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -185,7 +189,7 @@ fun OrderCard(order: OrderHistory) {
                     text = "$${String.format(Locale.US, "%.2f", order.totalAmount)}",
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 18.sp,
-                    color = Color(0xFF2E7D32)
+                    color = BookMasterPurple
                 )
             }
         }
