@@ -246,7 +246,7 @@ fun CartScreen(
             ) {
                 Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                    CartSummaryLine("Cantidad total:", "$units ejemplares", dark)
+                    CartSummaryLine("Cantidad total:", "$units ejemplar(es)", dark)
                     CartSummaryLine("Subtotal de libros:", MembershipPricing.money(subtotal), dark)
                     CartSummaryLine(
                         when {

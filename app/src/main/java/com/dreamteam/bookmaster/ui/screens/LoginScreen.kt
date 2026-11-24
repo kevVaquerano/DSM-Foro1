@@ -58,6 +58,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun LoginScreen(
     onNavigateToHome: () -> Unit,
+    onNavigateToAdmin: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onCompleteProfileNeeded: () -> Unit
 ) {
@@ -79,6 +80,40 @@ fun LoginScreen(
     var showPassword by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Antes de preparar un perfil de cliente, comprobar si la cuenta pertenece al administrador.
+    // Nunca crear ni cambiar roles desde la aplicacion.
+    fun continuarSegunRol(user: com.google.firebase.auth.FirebaseUser, provider: String) {
+        firestore.collection("users").document(user.uid).get()
+            .addOnSuccessListener { profile ->
+                if (auth.currentUser?.uid != user.uid) return@addOnSuccessListener
+                if (profile.exists() && profile.getString("role") == "admin" &&
+                    profile.getString("uid") == user.uid) {
+                    isLoading = false
+                    onNavigateToAdmin()
+                } else if (profile.exists() && profile.getString("role") == "admin") {
+                    // Perfil administrativo mal configurado: no dejarlo entrar al modulo cliente.
+                    isLoading = false
+                    auth.signOut()
+                    errorMessage = "El perfil de administrador no coincide con la cuenta. Revisá el UID en Firestore."
+                } else if (profile.exists() && profile.getString("role") !in listOf(null, "customer")) {
+                    isLoading = false
+                    auth.signOut()
+                    errorMessage = "Esta cuenta no tiene un rol autorizado."
+                } else {
+                    UserProfileRepository.prepareProfile(user, provider) { complete, error ->
+                        isLoading = false
+                        if (error != null) errorMessage = "No se pudo preparar tu perfil: $error"
+                        else if (complete) onNavigateToHome()
+                        else onCompleteProfileNeeded()
+                    }
+                }
+            }
+            .addOnFailureListener { exception ->
+                isLoading = false
+                errorMessage = "No se pudo verificar el tipo de cuenta: ${exception.localizedMessage}"
+            }
+    }
 
     // Obtiene el identificador OAuth generado por Firebase.
     val webClientId = remember(context) {
@@ -153,13 +188,7 @@ fun LoginScreen(
                             } else {
 
                                 // Nunca reemplazar el perfil existente con .set(userData).
-                                UserProfileRepository.prepareProfile(user, "Google") { complete, error ->
-                                    isLoading = false
-                                    if (error != null) {
-                                        errorMessage = "No se pudo preparar tu perfil: $error"
-                                    } else if (complete) onNavigateToHome()
-                                    else onCompleteProfileNeeded()
-                                }
+                                continuarSegunRol(user, "Google")
                             }
                         }
                         .addOnFailureListener { exception ->
@@ -537,12 +566,7 @@ fun LoginScreen(
                                         isLoading = false
                                         errorMessage = "No se encontró el usuario autenticado"
                                     } else {
-                                        UserProfileRepository.prepareProfile(user, "password") { complete, error ->
-                                            isLoading = false
-                                            if (error != null) errorMessage = "No se pudo preparar tu perfil: $error"
-                                            else if (complete) onNavigateToHome()
-                                            else onCompleteProfileNeeded()
-                                        }
+                                        continuarSegunRol(user, "password")
                                     }
                                 }
                                 .addOnFailureListener { exception ->

@@ -62,6 +62,9 @@ sealed class Screen(val route: String) {
     object Checkout : Screen("checkout")
     object ReceiptPreview : Screen("receipt_preview")
     object Purchases : Screen("purchases_screen")
+    object Admin : Screen("admin_dashboard")
+    object AdminAddBook : Screen("admin_add_book")
+    object AdminEditBook : Screen("admin_edit_book")
     object Profile : Screen("profile_screen")
     object CompleteProfile : Screen("complete_profile")
 }
@@ -161,6 +164,7 @@ fun NavGraph() {
                     .addOnSuccessListener { snapshot ->
                         if (Firebase.auth.currentUser?.uid != uid) return@addOnSuccessListener
                         val libros = snapshot.documents.mapNotNull { doc ->
+                            if (doc.getBoolean("isActive") == false) return@mapNotNull null
                             val minimo = doc.getLong("minimumAge")?.toInt() ?: return@mapNotNull null
                             val precio = doc.getDouble("price") ?: return@mapNotNull null
                             val stock = doc.getLong("stock")?.toInt() ?: return@mapNotNull null
@@ -357,6 +361,12 @@ fun NavGraph() {
                             cargarCatalogoDeUsuario()
                             navController.navigate(Screen.Home.route) {
                                 popUpTo(Screen.Login.route) { inclusive = true }
+                            }
+                        },
+                        onNavigateToAdmin = {
+                            navController.navigate(Screen.Admin.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                                launchSingleTop = true
                             }
                         },
                         onNavigateToRegister = { navController.navigate(Screen.Register.route) },
@@ -567,6 +577,107 @@ fun NavGraph() {
                             navController.navigate(Screen.Home.route) { launchSingleTop = true }
                         }
                     )
+                }
+
+                // Dashboard aislado: confirmar el rol también al entrar directamente en la ruta.
+                composable(Screen.Admin.route) {
+                    val uidAdmin = Firebase.auth.currentUser?.uid
+                    var accesoAdmin by remember(uidAdmin) { mutableStateOf<Boolean?>(null) }
+                    LaunchedEffect(uidAdmin) {
+                        if (uidAdmin == null) {
+                            accesoAdmin = false
+                        } else {
+                            Firebase.firestore.collection("users").document(uidAdmin).get()
+                                .addOnSuccessListener { doc ->
+                                    if (Firebase.auth.currentUser?.uid == uidAdmin) {
+                                        accesoAdmin = doc.exists() && doc.getString("role") == "admin" &&
+                                                doc.getString("uid") == uidAdmin
+                                    }
+                                }
+                                .addOnFailureListener { accesoAdmin = false }
+                        }
+                    }
+                    when (accesoAdmin) {
+                        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color(0xFF2864B4))
+                        }
+                        true -> AdminDashboardScreen(onAddBook = {
+                            navController.navigate(Screen.AdminAddBook.route) { launchSingleTop = true }
+                        }, onEditBook = {
+                            navController.navigate(Screen.AdminEditBook.route) { launchSingleTop = true }
+                        }, onLogout = {
+                            Firebase.auth.signOut()
+                            cartItems.clear()
+                            booksList.clear()
+                            receiptPreview = null
+                            usuarioDelCarrito = null
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(Screen.Admin.route) { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        })
+                        false -> LaunchedEffect(uidAdmin) {
+                            Firebase.auth.signOut()
+                            navController.navigate(Screen.Login.route) {
+                                popUpTo(Screen.Admin.route) { inclusive = true }
+                            }
+                        }
+                    }
+                }
+
+                // Acceso protegido al formulario administrativo, incluso por navegación directa.
+                composable(Screen.AdminAddBook.route) {
+                    val adminUid = Firebase.auth.currentUser?.uid
+                    var verified by remember(adminUid) { mutableStateOf<Boolean?>(null) }
+                    LaunchedEffect(adminUid) {
+                        if (adminUid == null) verified = false
+                        else Firebase.firestore.collection("users").document(adminUid).get()
+                            .addOnSuccessListener { profile ->
+                                if (Firebase.auth.currentUser?.uid == adminUid) {
+                                    verified = profile.exists() &&
+                                            profile.getString("role") == "admin" &&
+                                            profile.getString("uid") == adminUid
+                                }
+                            }
+                            .addOnFailureListener { verified = false }
+                    }
+                    when (verified) {
+                        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color(0xFF2864B4))
+                        }
+                        true -> AdminAddBookScreen(
+                            onBackClick = { navController.popBackStack() },
+                            onBookSaved = { navController.popBackStack() }
+                        )
+                        false -> LaunchedEffect(adminUid) {
+                            navController.popBackStack()
+                        }
+                    }
+                }
+
+                // Solo administradores pueden entrar a Editar libro.
+                composable(Screen.AdminEditBook.route) {
+                    val adminUid = Firebase.auth.currentUser?.uid
+                    var verified by remember(adminUid) { mutableStateOf<Boolean?>(null) }
+                    LaunchedEffect(adminUid) {
+                        if (adminUid == null) verified = false
+                        else Firebase.firestore.collection("users").document(adminUid).get()
+                            .addOnSuccessListener { profile ->
+                                if (Firebase.auth.currentUser?.uid == adminUid) {
+                                    verified = profile.exists() &&
+                                            profile.getString("role") == "admin" &&
+                                            profile.getString("uid") == adminUid
+                                }
+                            }
+                            .addOnFailureListener { verified = false }
+                    }
+                    when (verified) {
+                        null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color(0xFF2864B4))
+                        }
+                        true -> AdminEditBookScreen(onBackClick = { navController.popBackStack() })
+                        false -> LaunchedEffect(adminUid) { navController.popBackStack() }
+                    }
                 }
 
                 // Perfil del cliente: fotografía y nombres editables; nacimiento solo lectura.

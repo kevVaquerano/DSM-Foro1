@@ -31,7 +31,7 @@ class ConnectBD : ViewModel() {
     val historial: StateFlow<List<Compra>> = _historial.asStateFlow()
 
     // Se mantienen intactas las operaciones del historial heredado.
-    // NOTA: HistoryScreen.kt actualmente usa users/{uid}/orders, NO esta coleccion.
+    // NOTA: PurchasesScreen.kt actualmente usa users/{uid}/orders, NO esta coleccion.
     fun guardarCompra(userId: String, total: Double, librosIds: List<String>) {
         val ordenDeCompra = hashMapOf(
             "userId" to userId,
