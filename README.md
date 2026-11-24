@@ -26,7 +26,7 @@ desarrollada de forma nativa para Android.
 - [Reglas de seguridad de Firestore](#-reglas-de-seguridad-de-firestore)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Equipo](#-equipo)
-- 
+  
 ---
 ## 🎯 Sobre el proyecto
  
