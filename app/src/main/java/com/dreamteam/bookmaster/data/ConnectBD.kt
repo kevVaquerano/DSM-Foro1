@@ -10,28 +10,30 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// Modelo existente: historial de la coleccion heredada "historial_compras".
+// Representa una compra de la colección heredada "historial_compras".
 data class Compra(
     val id: String,
     val total: Double,
     val librosIds: List<String>
 )
 
-// Solo persistimos el identificador y la cantidad: el resto proviene del catalogo.
+// Guarda únicamente el ID del libro y su cantidad; los demás datos provienen del catálogo.
 data class ProductoCarritoGuardado(
     val libroId: String,
     val cantidad: Int
 )
 
+/** Gestiona el carrito persistente y las consultas del historial heredado en Firestore. */
 class ConnectBD : ViewModel() {
 
     private val db = Firebase.firestore
 
+    // Expone el historial como un flujo de solo lectura para los consumidores del ViewModel.
     private val _historial = MutableStateFlow<List<Compra>>(emptyList())
     val historial: StateFlow<List<Compra>> = _historial.asStateFlow()
 
-    // Se mantienen intactas las operaciones del historial heredado.
-    // NOTA: PurchasesScreen.kt actualmente usa users/{uid}/orders, NO esta coleccion.
+    // Registra compras en la colección heredada.
+    // PurchasesScreen.kt utiliza users/{uid}/orders en lugar de esta colección.
     fun guardarCompra(userId: String, total: Double, librosIds: List<String>) {
         val ordenDeCompra = hashMapOf(
             "userId" to userId,
@@ -51,6 +53,7 @@ class ConnectBD : ViewModel() {
             }
     }
 
+    // Consulta las compras del usuario, ordenadas desde la más reciente.
     fun obtenerHistorial(userId: String) {
         db.collection("historial_compras")
             .whereEqualTo("userId", userId)
@@ -72,11 +75,11 @@ class ConnectBD : ViewModel() {
             }
     }
 
-    // El usuario se obtiene siempre de la sesion actual de Firebase.
-    // Resultado: true si Firestore confirmo el cambio; false en caso contrario.
+    // Obtiene el identificador de la cuenta autenticada en Firebase.
     private fun uidActual(): String? = Firebase.auth.currentUser?.uid
 
-    // users/{uid}/cart/{libroId} -> { quantity: Int }
+    // Guarda o reemplaza la cantidad en users/{uid}/cart/{libroId}.
+    // El callback informa si Firestore confirmó la escritura o devolvió un error.
     fun guardarProductoCarrito(
         libroId: String,
         cantidad: Int,
@@ -95,6 +98,7 @@ class ConnectBD : ViewModel() {
             .addOnFailureListener { e -> onResultado(false, e.message) }
     }
 
+    // Elimina únicamente el documento del libro indicado en el carrito de la cuenta actual.
     fun eliminarProductoCarrito(
         libroId: String,
         onResultado: (Boolean, String?) -> Unit
@@ -112,7 +116,7 @@ class ConnectBD : ViewModel() {
             .addOnFailureListener { e -> onResultado(false, e.message) }
     }
 
-    // Lee desde el servidor para evitar mostrar un carrito obsoleto de la cache.
+    // Consulta el servidor para evitar recuperar datos obsoletos de la caché.
     fun obtenerCarrito(
         onResultado: (List<ProductoCarritoGuardado>?, String?) -> Unit
     ) {
@@ -126,6 +130,7 @@ class ConnectBD : ViewModel() {
             .collection("cart")
             .get(com.google.firebase.firestore.Source.SERVER)
             .addOnSuccessListener { documentos ->
+                // Descarta registros con cantidades nulas, cero o negativas.
                 val productos = documentos.mapNotNull { doc ->
                     val cantidad = doc.getLong("quantity")?.toInt() ?: 0
                     if (cantidad > 0) ProductoCarritoGuardado(doc.id, cantidad) else null
@@ -135,8 +140,8 @@ class ConnectBD : ViewModel() {
             .addOnFailureListener { e -> onResultado(null, e.message) }
     }
 
-    // Se usara DESPUES de confirmar la compra y guardar la orden.
-    // No invocar al cerrar sesion: cerrar sesion no debe borrar datos remotos.
+    // Elimina todos los artículos del carrito remoto cuando se solicita su vaciado.
+    // No debe invocarse al cerrar sesión, para conservar el carrito de la cuenta.
     fun vaciarCarrito(
         onResultado: (Boolean, String?) -> Unit
     ) {
@@ -154,12 +159,13 @@ class ConnectBD : ViewModel() {
                     onResultado(true, null)
                     return@addOnSuccessListener
                 }
-                // Carritos normales son pequenos. Firestore admite maximo 500
-                // operaciones por lote; si se amplía el catalogo, paginar este borrado.
+                // La implementación limita el borrado a 500 documentos por lote.
+                // Si se supera el límite, devuelve un error sin realizar el borrado.
                 if (documentos.size() > 500) {
                     onResultado(false, "Carrito demasiado grande para vaciarlo en un lote")
                     return@addOnSuccessListener
                 }
+                // Confirma todas las eliminaciones juntas mediante un lote de escrituras.
                 val batch = db.batch()
                 documentos.documents.forEach { doc -> batch.delete(doc.reference) }
                 batch.commit()

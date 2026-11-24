@@ -12,14 +12,17 @@ import java.io.File
  */
 object LocalProfilePhotoStore {
 
+    // Crea la carpeta privada y asigna un archivo independiente a cada UID.
     private fun fileFor(context: Context, uid: String): File {
         val directory = File(context.filesDir, "profile_photos")
         if (!directory.exists()) directory.mkdirs()
         return File(directory, "$uid.jpg")
     }
 
+    // Lee la imagen seleccionada y reduce su tamaño antes de guardarla.
     fun decodeSelectedPhoto(context: Context, uri: Uri): Bitmap? {
         return try {
+            // Consulta las dimensiones originales sin cargar todos los píxeles.
             val bounds = BitmapFactory.Options().apply {
                 inJustDecodeBounds = true
             }
@@ -28,10 +31,12 @@ object LocalProfilePhotoStore {
                 BitmapFactory.decodeStream(it, null, bounds)
             }
 
+            // Descarta imágenes que no se pudieron reconocer.
             if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
                 return null
             }
 
+            // Reduce la resolución durante la decodificación para ahorrar memoria.
             var sample = 1
             while (
                 bounds.outWidth / sample > 1024 ||
@@ -49,6 +54,7 @@ object LocalProfilePhotoStore {
                     BitmapFactory.decodeStream(it, null, options)
                 } ?: return null
 
+            // Limita el lado mayor a 512 píxeles, conservando las proporciones.
             val maxEdge = 512
 
             if (bitmap.width <= maxEdge && bitmap.height <= maxEdge) {
@@ -71,6 +77,7 @@ object LocalProfilePhotoStore {
         }
     }
 
+    // Guarda o reemplaza la fotografía local en formato JPEG con calidad 85.
     fun save(
         context: Context,
         uid: String,
@@ -91,6 +98,7 @@ object LocalProfilePhotoStore {
         !file.exists() || file.delete()
     } catch (_: Exception) { false }
 
+    // Recupera la fotografía del usuario; devuelve null si no existe o falla la lectura.
     fun load(context: Context, uid: String): Bitmap? = try {
         val file = fileFor(context, uid)
 

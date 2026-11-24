@@ -64,13 +64,15 @@ import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 
+// Paleta de colores del módulo administrativo.
 private val AdminBlue = Color(0xFF2864B4)
 private val AdminNavy = Color(0xFF173B73)
 private val AdminBackground = Color(0xFFF1F6FD)
 
-/** Dashboard inicial: las cinco funciones tendrán sus propias pantallas en la siguiente fase. */
+/** Panel principal del administrador: catálogo, ventas, alertas de stock y perfil. */
 @Composable
 fun AdminDashboardScreen(onLogout: () -> Unit, onAddBook: () -> Unit, onEditBook: () -> Unit) {
+    // Estado de navegación y ventanas del panel.
     var adminTab by remember { mutableStateOf(0) } // 0 = Inicio, 1 = Perfil
     var salesOpen by remember { mutableStateOf(false) }
     var bookListOpen by remember { mutableStateOf(false) }
@@ -85,6 +87,7 @@ fun AdminDashboardScreen(onLogout: () -> Unit, onAddBook: () -> Unit, onEditBook
         else -> "Buenas noches"
     }
 
+    // Recupera el nombre del administrador autenticado.
     LaunchedEffect(uid) {
         if (uid != null) {
             Firebase.firestore.collection("users").document(uid).get()
@@ -96,6 +99,7 @@ fun AdminDashboardScreen(onLogout: () -> Unit, onAddBook: () -> Unit, onEditBook
         }
     }
 
+    // Las secciones internas sustituyen temporalmente el contenido del panel.
     if (salesOpen) {
         AdminSalesReport(onBack = { salesOpen = false })
         return
@@ -195,6 +199,7 @@ private fun AdminProfileTab(
     val user = Firebase.auth.currentUser
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Datos editables y copia de los valores guardados para cancelar cambios.
     var firstName by remember(user?.uid) { mutableStateOf("") }
     var lastName by remember(user?.uid) { mutableStateOf("") }
     var savedFirstName by remember(user?.uid) { mutableStateOf("") }
@@ -207,6 +212,7 @@ private fun AdminProfileTab(
     var editingPhoto by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
 
+    // Recupera la fotografía local y verifica el perfil administrativo en Firestore.
     LaunchedEffect(user?.uid) {
         if (user == null) {
             loading = false
@@ -236,6 +242,7 @@ private fun AdminProfileTab(
             }
     }
 
+    // Selector de fotografía del dispositivo.
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && user != null && !editingPhoto && !saving) {
             editingPhoto = true
@@ -525,12 +532,14 @@ private fun AdminProfileTab(
     }
 }
 
+/** Valida los nombres ingresados en el perfil administrativo. */
 private fun adminValidName(value: String): Boolean {
     val clean = value.trim()
     return clean.length in 2..60 &&
             Regex("""^[\p{L}\p{M}]+(?:[ ][\p{L}\p{M}]+)*$""").matches(clean)
 }
 
+/** Tarjeta de acceso a una función del panel. */
 @Composable
 private fun AdminTile(
     label: String,
@@ -572,6 +581,7 @@ private fun AdminTile(
     }
 }
 
+/** Datos de cada segmento del gráfico de ventas por categoría. */
 private data class SalesSlice(val category: String, val units: Int, val color: Color)
 
 /** Reporte de pedidos de prueba no cancelados, por cantidad de ejemplares. */
@@ -825,12 +835,14 @@ private fun AdminSalesReport(onBack: () -> Unit) {
 }
 
 // Mismos rangos que BookDetail: 0-9 rojo, 10 amarillo, 11+ verde.
+/** Color de existencias: rojo por debajo de 10, amarillo en 10 y verde por encima. */
 private fun adminStockColor(stock: Long): Color = when {
     stock < 10L -> Color(0xFFC62828)
     stock == 10L -> Color(0xFF9A6700)
     else -> Color(0xFF2E7D32)
 }
 
+/** Datos del catálogo utilizados en el listado y las alertas. */
 private data class AdminListedBook(
     val id: String,
     val title: String,
@@ -913,6 +925,7 @@ private fun AdminListedBookCover(book: AdminListedBook) {
     }
 }
 
+/** Consulta y presenta el inventario de libros. */
 @Composable
 private fun AdminBookList(onBack: () -> Unit) {
     val uid = Firebase.auth.currentUser?.uid
@@ -1080,6 +1093,7 @@ private fun AdminBookList(onBack: () -> Unit) {
     }
 }
 
+/** Indicador visual de los niveles de existencias. */
 @Composable
 private fun AdminStockLegend(label: String, color: Color) {
     Row(verticalAlignment = Alignment.CenterVertically,
@@ -1118,6 +1132,7 @@ private object LocalRestockOrders {
 }
 
 /** Alertas con los mismos límites que BookDetail: rojo 0–9, amarillo 10. */
+/** Gestiona alertas de inventario y solicitudes simuladas de reabastecimiento. */
 @Composable
 private fun AdminStockAlerts(onBack: () -> Unit) {
     val uid = Firebase.auth.currentUser?.uid
@@ -1307,6 +1322,7 @@ private fun AdminStockAlerts(onBack: () -> Unit) {
     }
 }
 
+/** Tabla de alertas con controles para solicitar, recibir o cancelar cargamentos. */
 @Composable
 private fun AdminAlertTable(
     heading: String,

@@ -35,7 +35,7 @@ import com.dreamteam.bookmaster.ui.theme.BookMasterPurple
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
-/** Rediseño del carrito. El guardado y las cantidades permanecen a cargo de NavGraph. */
+/** Pantalla del carrito. NavGraph gestiona la persistencia y los cambios de cantidades. */
 @Composable
 fun CartScreen(
     cartItems: List<CartItem>,
@@ -51,9 +51,11 @@ fun CartScreen(
     val purple = BookMasterPurple
     val line = Color(0xFFCAC4D0) // Borde gris suave de los campos del login
     val pale = Color(0xFFFCFAFF)
+    // Estados del modo de edición y de los diálogos de confirmación.
     var editing by remember { mutableStateOf(false) }
     var showClearConfirmation by remember { mutableStateOf(false) }
     var itemPendingRemoval by remember { mutableStateOf<CartItem?>(null) }
+    // Calcula el total sin envío aplicando el descuento de membresía.
     val membership = rememberMembershipStatus()
     val subtotal = cartItems.sumOf { it.book.price * it.quantity }
     val discount = MembershipPricing.discount(subtotal, membership.level)
@@ -65,6 +67,7 @@ fun CartScreen(
     val discountPercentage = if (subtotal > 0.0) (discount / subtotal * 100.0).roundToInt() else 0
     val discountLevelName = membership.level?.lowercase()?.replaceFirstChar { it.titlecase() }
 
+    // Ajusta la barra de estado al color del encabezado.
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             @Suppress("DEPRECATION")
@@ -117,6 +120,7 @@ fun CartScreen(
         )
     }
 
+    // Solicita confirmación antes de vaciar todos los artículos.
     if (showClearConfirmation) {
         AlertDialog(
             onDismissRequest = { showClearConfirmation = false },
@@ -150,7 +154,7 @@ fun CartScreen(
     }
 
     Column(Modifier.fillMaxSize().background(pale)) {
-        // Una sola línea: regresar, título y acciones. Conserva la altura de Checkout.
+        // Encabezado con navegación y acciones de edición y vaciado.
         Row(
             modifier = Modifier.fillMaxWidth().background(dark)
                 .statusBarsPadding().height(62.dp)
@@ -223,6 +227,7 @@ fun CartScreen(
             }
         }
 
+        // Muestra un aviso si el carrito está vacío; de lo contrario, lista los artículos.
         if (cartItems.isEmpty()) {
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -248,6 +253,7 @@ fun CartScreen(
                     )
                 }
             }
+            // Resumen de importes y acceso a la confirmación de compra.
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
@@ -288,6 +294,7 @@ fun CartScreen(
     }
 }
 
+/** Fila reutilizable para presentar conceptos e importes del carrito. */
 @Composable
 private fun CartSummaryLine(label: String, value: String, dark: Color, valueColor: Color = dark) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
@@ -300,6 +307,7 @@ private fun CartSummaryLine(label: String, value: String, dark: Color, valueColo
     }
 }
 
+/** Tarjeta de un artículo con cantidad, subtotal y opción de eliminación. */
 @Composable
 private fun RedesignedCartItem(
     item: CartItem,
@@ -321,6 +329,7 @@ private fun RedesignedCartItem(
             showRemoveIcon = false // Al salir de Editar desaparece inmediatamente.
         }
     }
+    // Reserva espacio para el botón de eliminación mediante una animación.
     val shifted by animateDpAsState(
         targetValue = if (editing) 53.dp else 0.dp,
         animationSpec = tween(durationMillis = 260),
@@ -354,7 +363,7 @@ private fun RedesignedCartItem(
                 modifier = Modifier.fillMaxWidth().padding(11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Portada real y completa del drawable del catálogo.
+                // Muestra el recurso drawable del libro o un icono si no existe.
                 Box(
                     modifier = Modifier.width(coverWidth).height(110.dp)
                         .clip(RoundedCornerShape(9.dp))
@@ -411,7 +420,7 @@ private fun RedesignedCartItem(
                     )
                     Text("Cantidad:", color = dark, fontSize = 13.sp)
 
-                    // Mismo contador segmentado de BookDetail, adaptado a la tarjeta.
+                    // Control de cantidad: se desactiva al editar y respeta el stock máximo.
                     Row(
                         modifier = Modifier.height(32.dp)
                             .border(1.dp, Color(0xFFB99CD6), RoundedCornerShape(9.dp))
@@ -448,6 +457,7 @@ private fun RedesignedCartItem(
                 }
             }
         }
+        // El botón solicita la eliminación mediante el callback recibido.
         if (showRemoveIcon && editing) {
             Box(
                 modifier = Modifier.align(Alignment.CenterEnd).width(53.dp),

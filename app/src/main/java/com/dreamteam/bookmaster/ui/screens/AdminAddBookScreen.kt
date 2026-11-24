@@ -43,14 +43,15 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+// Paleta de colores del formulario administrativo.
 private val AddBlue = Color(0xFF2864B4)
 private val AddNavy = Color(0xFF173B73)
 private val AddBackground = Color(0xFFF1F6FD)
 private val AddLine = Color(0xFFDCE6F4)
 private val AddMenuBackground = Color(0xFFE7F3FF)
 
-// Se admiten letras Unicode (á, é, í, ó, ú, ü, ñ), espacios y números solo en títulos.
-// Sin signos, emojis, espacios repetidos ni cadenas formadas solo por números.
+// Título: letras Unicode, números y espacios simples. Autor: letras Unicode y espacios simples.
+// La validación actual del título también admite cadenas compuestas solo por números.
 private val addTitlePattern = Regex("^[\\p{L}\\p{M}0-9]+(?: [\\p{L}\\p{M}0-9]+)*$")
 private val addAuthorPattern = Regex("^[\\p{L}\\p{M}]+(?: [\\p{L}\\p{M}]+)*$")
 private fun addTitleIsValid(text: String): Boolean {
@@ -63,11 +64,13 @@ private fun addAuthorIsValid(text: String): Boolean {
 }
 
 
+// La portada remota es opcional; si se indica una URL, debe cumplir el formato HTTPS.
 private fun addHttpsValid(value: String): Boolean = value.isBlank() || try {
     val parsed = java.net.URI(value.trim())
     parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank() &&
             parsed.userInfo == null && value.trim().length <= 1000
 } catch (_: Exception) { false }
+// Categorías admitidas por la validación local al crear un libro.
 private val allowedNewCategories = setOf(
     "Romance", "Ciencia Ficción", "Ciencias", "Literatura", "Psicología y Superación Personal",
     "Historia", "Fantasía", "Infantil", "Otros"
@@ -76,6 +79,7 @@ private val allowedNewCategories = setOf(
 
 /** Mismo almacenamiento privado de portadas que usa la pantalla Editar libro. */
 private object AddLocalCoverStorage {
+    // Lee la imagen seleccionada y reduce su resolución antes de cargarla en memoria.
     suspend fun decodeSelected(context: Context, uri: Uri): Bitmap? = withContext(Dispatchers.IO) {
         try {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -91,6 +95,7 @@ private object AddLocalCoverStorage {
         } catch (_: Exception) { null }
     }
 
+    // Guarda un JPEG privado con el ID del libro y elimina la marca de portada oculta.
     suspend fun save(context: Context, id: String, bitmap: Bitmap): Boolean = withContext(Dispatchers.IO) {
         try {
             val folder = File(context.filesDir, "book_covers")
@@ -154,7 +159,7 @@ private fun AddBookField(
     }
 }
 
-/** Conserva la firma llamada desde NavGraph. */
+/** Formulario administrativo para registrar libros en Firestore y asignar portadas opcionales. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
@@ -162,6 +167,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Estados de los campos del formulario y del selector de categorías.
     var name by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
     var titleTouched by remember { mutableStateOf(false) }
@@ -197,6 +203,8 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
                 }
             }
     }
+
+    // Datos comerciales, información editorial y estados de la portada y del guardado.
     var price by remember { mutableStateOf("") }
     var stock by remember { mutableStateOf("") }
     var rating by remember { mutableStateOf("") }
@@ -210,6 +218,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var failure by remember { mutableStateOf<String?>(null) }
 
+    // Abre el selector de imágenes de Android y procesa la portada fuera del hilo principal.
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             readingCover = true
@@ -224,6 +233,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
         }
     }
 
+    // Actualiza la vista previa remota cuando cambia el enlace de la portada.
     LaunchedEffect(imageUrl) {
         remoteCover = null
         val url = imageUrl.trim()
@@ -244,6 +254,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
         }
     }
 
+    // Convierte los campos numéricos y normaliza el ISBN antes de validar.
     val numericPrice = price.replace(',', '.').toDoubleOrNull()
     val numericStock = stock.toLongOrNull()
     val numericRating = rating.replace(',', '.').toDoubleOrNull()
@@ -251,8 +262,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
     val numericYear = year.toLongOrNull()
     val cleanIsbn = isbn.filter(Char::isDigit)
     val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-    // Se permiten tildes, eñes y otros caracteres Unicode en título y autor.
-    // No aplicar filtros ASCII ni eliminar acentos al guardar en Firestore.
+    // Comprueba los campos obligatorios, categorías, rangos numéricos y datos opcionales.
     val valid = addTitleIsValid(name) && addAuthorIsValid(author) &&
             (cleanIsbn.length in listOf(10, 13) &&
                     isbn.all { it.isDigit() || it == '-' || it == ' ' }) &&
@@ -262,6 +272,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
             numericRating in 0.0..5.0 && numericAge != null && numericAge in 0L..120L &&
             numericYear != null && numericYear in 1450L..currentYear.toLong() && description.length <= 2000 && addHttpsValid(imageUrl)
 
+    // Interfaz: encabezado fijo y formulario desplazable.
     Column(Modifier.fillMaxSize().background(AddBackground)) {
         Surface(color = AddNavy, shadowElevation = 2.dp) {
             Row(
@@ -292,6 +303,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
                         .border(BorderStroke(1.dp, AddBlue.copy(alpha = 0.35f)), RoundedCornerShape(15.dp)),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Prioridad de la vista previa: imagen del dispositivo, URL y marcador vacío.
                     when {
                         selectedCover != null -> Image(
                             bitmap = selectedCover!!.asImageBitmap(),
@@ -445,6 +457,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
                     if (loading || !valid || uid == null || Firebase.auth.currentUser?.uid != uid) return@Button
                     loading = true
                     failure = null
+                    // Construye el documento con datos validados y fecha del servidor.
                     val fields: Map<String, Any> = mapOf(
                         "title" to name.trim(), "author" to author.trim(),
                         "isbn" to cleanIsbn, "category" to category.trim(),
@@ -453,6 +466,7 @@ fun AdminAddBookScreen(onBackClick: () -> Unit, onBookSaved: () -> Unit) {
                         "description" to description.trim(), "imageUrl" to imageUrl.trim(),
                         "rating" to numericRating!!, "createdAt" to FieldValue.serverTimestamp()
                     )
+                    // Registra primero el libro; si hay portada local, la guarda con el ID generado.
                     Firebase.firestore.collection("books").add(fields)
                         .addOnSuccessListener { doc ->
                             val cover = selectedCover

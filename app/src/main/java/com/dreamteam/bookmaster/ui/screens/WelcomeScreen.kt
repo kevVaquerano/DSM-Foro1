@@ -37,7 +37,7 @@ fun WelcomeScreen(
     onLogin: () -> Unit,
     onRegister: () -> Unit
 ) {
-    // Obtiene las dimensiones para adaptar el diseño a la pantalla.
+    // Usa las dimensiones disponibles en dp para posicionar y dimensionar los elementos.
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val screenHeight = configuration.screenHeightDp.dp
@@ -67,7 +67,7 @@ fun WelcomeScreen(
     var maullidoListo by remember { mutableStateOf(false) }
     var ronroneoListo by remember { mutableStateOf(false) }
 
-    // Guarda el canal activo del ronroneo.
+    // Conserva el identificador del canal para detener el ronroneo al soltar el gatito.
     var canalRonroneo by remember { mutableIntStateOf(0) }
 
     /**
@@ -232,7 +232,7 @@ fun WelcomeScreen(
         )
     }
 
-    // Contenedor que permite superponer los elementos decorativos.
+    // Superpone el fondo, las imágenes animadas y el botón de inicio.
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -346,7 +346,7 @@ fun WelcomeScreen(
                         )
                     )
 
-                    // Aplica el reflejo sobre la imagen del logo.
+                    // SrcAtop limita el reflejo a los píxeles visibles del logo.
                     drawRect(
                         brush = reflejo,
                         blendMode = BlendMode.SrcAtop

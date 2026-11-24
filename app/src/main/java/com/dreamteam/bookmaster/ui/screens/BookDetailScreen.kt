@@ -30,12 +30,8 @@ import com.dreamteam.bookmaster.ui.theme.BookMasterBackground
 import java.util.Locale
 
 /**
- * Detalle de un libro.
- * Mantiene intacta la firma usada desde NavGraph y la lógica de añadir al carrito.
- * Material Symbols requeridos en drawable:
- * - ic_book_detail_back.xml: arrow_back (NUEVO)
- * - ic_book_rating_star.xml: usar la variante Filled de Material Symbols para ver la estrella amarilla
- * - ic_nav_cart.xml: ya existente, se reutiliza.
+ * Muestra la información del libro seleccionado y permite elegir ejemplares.
+ * Delega la navegación y la incorporación al carrito mediante callbacks.
  */
 @Composable
 fun BookDetailScreen(
@@ -44,7 +40,7 @@ fun BookDetailScreen(
     onAddToCart: (Book, Int) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
-    // Mantener la barra del sistema del mismo color que el encabezado.
+    // Ajusta la barra de estado al color del encabezado.
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             @Suppress("DEPRECATION")
@@ -53,14 +49,17 @@ fun BookDetailScreen(
                 .isAppearanceLightStatusBars = false
         }
     }
+    // Busca la portada incluida en drawable utilizando el ID del libro.
     val coverResource = remember(book.id) {
         context.resources.getIdentifier(book.id, "drawable", context.packageName)
     }
+    // Reinicia la cantidad al cambiar el libro o sus existencias.
     var quantity by remember(book.id, book.stock) { mutableIntStateOf(1) }
     val available = book.stock > 0
     val total = book.price * quantity
     val softPurple = Color(0xFFEDE5F8)
     val muted = Color(0xFF766D80)
+    // Indicador visual de existencias: bajo, límite y suficiente.
     val stockColor = when {
         book.stock < 10 -> Color(0xFFC62828) // 0-9: rojo
         book.stock == 10 -> Color(0xFF9A6700) // 10: amarillo oscuro, legible sobre blanco
@@ -70,6 +69,7 @@ fun BookDetailScreen(
     Scaffold(
         containerColor = BookMasterBackground,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        // Barra inferior fija con el total, selector de cantidad y acción de compra.
         bottomBar = {
             Surface(color = Color.White, shadowElevation = 8.dp) {
                 Column(
@@ -93,7 +93,7 @@ fun BookDetailScreen(
                             )
                         }
                         if (available) {
-                            // Un solo control segmentado; las líneas dividen cada sector.
+                            // Limita la cantidad entre un ejemplar y el stock disponible.
                             Row(
                                 modifier = Modifier
                                     .height(42.dp)
@@ -131,6 +131,7 @@ fun BookDetailScreen(
                         }
                     }
                     Spacer(Modifier.height(10.dp))
+                    // Envía la selección al componente encargado de gestionar el carrito.
                     Button(
                         onClick = { onAddToCart(book, quantity) },
                         enabled = available,
@@ -155,7 +156,7 @@ fun BookDetailScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-            // Encabezado oscuro; la flecha vuelve a ocupar el lugar de «Volver».
+            // Encabezado con botón de regreso a la pantalla anterior.
             Box(
                 modifier = Modifier.fillMaxWidth()
                     .background(BookMasterDarkPurple)
@@ -186,8 +187,7 @@ fun BookDetailScreen(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)
             ) {
                 Spacer(Modifier.height(14.dp))
-                // Portada completa y de mayor tamaño. Fit conserva toda la imagen,
-                // incluso si el libro tiene una portada muy vertical u horizontal.
+                // Muestra la portada sin recortarla; informa si no existe el recurso.
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
                         .height(330.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFFF1F3F6)),
@@ -206,7 +206,7 @@ fun BookDetailScreen(
                 }
 
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp)) {
-                    // Título a la izquierda y categoría a su derecha, en cápsula.
+                    // Presenta el título y la categoría del libro.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Top,
@@ -241,7 +241,7 @@ fun BookDetailScreen(
                     )
                     Spacer(Modifier.height(13.dp))
 
-                    // Calificación sin cápsula, y edad recomendada en el extremo derecho.
+                    // Muestra la calificación y la edad mínima del libro.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -276,6 +276,7 @@ fun BookDetailScreen(
                     Spacer(Modifier.height(18.dp))
                     HorizontalDivider(color = Color(0xFFD4C4E8))
                     Spacer(Modifier.height(17.dp))
+                    // Utiliza un mensaje alternativo cuando no hay descripción.
                     Text("Descripción", color = BookMasterDarkPurple, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -283,6 +284,7 @@ fun BookDetailScreen(
                         color = Color(0xFF605A67), fontSize = 14.sp, lineHeight = 21.sp
                     )
                     Spacer(Modifier.height(20.dp))
+                    // Resumen del precio unitario y existencias actuales.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

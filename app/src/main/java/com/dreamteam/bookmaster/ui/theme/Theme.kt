@@ -8,11 +8,10 @@ import androidx.compose.runtime.Composable
 /**
  * Define los esquemas de colores de BookMaster.
  *
- * Permite adaptar la apariencia de los componentes
- * al modo claro u oscuro del dispositivo.
+ * El modo claro se aplica por defecto; el modo oscuro se selecciona mediante darkTheme.
  */
 
-// Colores de la marca: no dependen del fondo de pantalla del teléfono.
+// Esquema oscuro con la paleta fija de BookMaster.
 private val DarkColorScheme = darkColorScheme(
     primary = BookMasterPurple,
     onPrimary = androidx.compose.ui.graphics.Color.White,
@@ -24,6 +23,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = androidx.compose.ui.graphics.Color.White
 )
 
+// Esquema claro utilizado de forma predeterminada.
 private val LightColorScheme = lightColorScheme(
     primary = BookMasterPurple,
     onPrimary = androidx.compose.ui.graphics.Color.White,
@@ -43,8 +43,7 @@ private val LightColorScheme = lightColorScheme(
  * Aplica el tema visual general de la aplicación.
  *
  * @param darkTheme Indica si debe utilizarse el modo oscuro.
- * @param dynamicColor Permite utilizar colores dinámicos
- * en dispositivos compatibles con Android 12 o superior.
+ * @param dynamicColor Parámetro conservado por compatibilidad; no activa colores dinámicos.
  * @param content Contenido de la aplicación al que se aplica el tema.
  */
 @Composable
@@ -53,7 +52,7 @@ fun DSM_LibreriaTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // El modo predeterminado es claro; se mantiene darkTheme como opción futura.
+    // Selecciona el esquema según darkTheme, sin consultar el modo del dispositivo.
     // dynamicColor se conserva en la firma por compatibilidad, pero no se aplica:
     // una paleta dinámica volvería a alterar la identidad visual morada.
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

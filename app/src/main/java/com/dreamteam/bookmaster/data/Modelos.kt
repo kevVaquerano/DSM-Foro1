@@ -1,7 +1,7 @@
 package com.dreamteam.bookmaster.data
 
 
-// Clases de Datos
+// Modelo de datos de un libro y sus existencias.
 data class Libro(
     val titulo: String = "",
     val autor: String = "",
@@ -10,7 +10,7 @@ data class Libro(
     val stock: Int= 0,
 )
 
-// Clases de Usuario con Herencia
+// Clase base que reúne los datos comunes de los usuarios.
 abstract class Usuario(
     val id: String,
     val nombre: String,
@@ -18,6 +18,7 @@ abstract class Usuario(
     val rol: String,
 )
 
+// Cliente con nivel de membresía y puntos de fidelidad.
 class Cliente(
     id: String,
     nombre: String,
@@ -26,18 +27,20 @@ class Cliente(
     var puntosFidelidad: Int = 0
 ) : Usuario(id, nombre, email, "CLIENTE")
 
+// Usuario especializado con el rol de administrador.
 class Administrador(
     id: String,
     nombre: String,
     email: String
 ) : Usuario(id, nombre, email, "ADMINISTRADOR")
 
-// Estructura de Pedidos
+// Relaciona un libro con la cantidad solicitada en un pedido.
 data class ItemPedido(
     val libro: Libro,
     val cantidad: Int
 )
 
+// Agrupa los artículos, el cliente, el total y el estado del pedido.
 data class Pedido(
     val codigoTicket: String,
     val cliente: Cliente,

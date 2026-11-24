@@ -52,6 +52,7 @@ import com.dreamteam.bookmaster.ui.theme.BookMasterPurple
 import com.dreamteam.bookmaster.ui.theme.BookMasterLightPurple
 import com.dreamteam.bookmaster.ui.theme.BookMasterBackground
 
+/** Rutas internas utilizadas por el grafo de navegación. */
 sealed class Screen(val route: String) {
     object Welcome : Screen("welcome")
     object Login : Screen("login")
@@ -69,6 +70,10 @@ sealed class Screen(val route: String) {
     object CompleteProfile : Screen("complete_profile")
 }
 
+/**
+ * Coordina la navegación entre las pantallas de cliente y administración.
+ * Mantiene los estados compartidos del catálogo, carrito y recibo de compra.
+ */
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
@@ -79,7 +84,7 @@ fun NavGraph() {
     var guardandoCambio by remember { mutableStateOf(false) }
     var usuarioDelCarrito by remember { mutableStateOf<String?>(null) }
 
-    // Catálogo real: los IDs son los documentos de Firestore (libro_001 ... libro_018).
+    // Los libros se cargan desde Firestore; cada ID corresponde a un documento de books.
     val booksList = remember { mutableStateListOf<Book>() }
     var edadUsuario by remember { mutableStateOf<Int?>(null) }
     var cargandoCatalogo by remember { mutableStateOf(false) }
@@ -88,7 +93,7 @@ fun NavGraph() {
     val cartItems = remember { mutableStateListOf<CartItem>() }
     var receiptPreview by remember { mutableStateOf<OrderReceiptPreview?>(null) }
 
-    // Aviso local de pedido nuevo, separado para cada cuenta.
+    // Guarda en el dispositivo si cada usuario tiene un pedido nuevo por revisar.
     val purchaseNoticeUid = Firebase.auth.currentUser?.uid
     val purchaseNoticePrefs = remember(context) {
         context.getSharedPreferences("bookmaster_purchase_notice", android.content.Context.MODE_PRIVATE)
@@ -98,6 +103,7 @@ fun NavGraph() {
             purchaseNoticeUid != null && purchaseNoticePrefs.getBoolean("unread_$purchaseNoticeUid", false)
         )
     }
+    // Actualiza el indicador de Mis pedidos y persiste su estado por UID.
     fun setPurchaseUnread(unread: Boolean) {
         purchaseUnread = unread
         purchaseNoticeUid?.let { uid ->
@@ -106,15 +112,15 @@ fun NavGraph() {
     }
 
 
-    // Para este prototipo, la edad limita la visibilidad y el carrito en el cliente.
-    // No sustituye validaciones seguras del servidor para compras reales.
+    // El filtro de edad restringe el catálogo visible y los libros del carrito.
+    // Esta comprobación de interfaz no sustituye las reglas de seguridad del servidor.
 
     fun avisar(mensaje: String) {
         Toast.makeText(context, mensaje, Toast.LENGTH_LONG).show()
     }
 
-    // Al entrar con una cuenta, recuperamos exclusivamente SU carrito remoto.
-    // Mientras se carga, el diálogo impide modificar o vaciar accidentalmente el carrito.
+    // Recupera únicamente el carrito asociado a la cuenta autenticada.
+    // La interfaz bloquea cambios hasta terminar la carga.
     fun cargarCarritoDeUsuario() {
         val uid = Firebase.auth.currentUser?.uid
         cartItems.clear()
@@ -144,6 +150,7 @@ fun NavGraph() {
         }
     }
 
+    // Calcula la edad a partir de una fecha ISO y rechaza fechas inválidas o futuras.
     fun calcularEdad(fecha: String): Int? = try {
         val formato = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         formato.isLenient = false
@@ -162,6 +169,8 @@ fun NavGraph() {
         }
     } catch (_: Exception) { null }
 
+    // Consulta la fecha de nacimiento antes de cargar los libros permitidos.
+    // Omite registros inactivos, incompletos o con datos inválidos.
     fun cargarCatalogoDeUsuario() {
         val uid = Firebase.auth.currentUser?.uid ?: return
         booksList.clear()
@@ -223,8 +232,8 @@ fun NavGraph() {
             }
     }
 
-    // Guardar PRIMERO en Firestore y luego actualizar la interfaz: si falla,
-    // la selección local permanece intacta y se puede volver a intentar.
+    // Confirma primero el cambio en Firestore; solo después actualiza la lista local.
+    // Si falla, se conserva la cantidad anterior para permitir otro intento.
     fun cambiarCantidad(libroId: String, cantidadNueva: Int) {
         val uid = Firebase.auth.currentUser?.uid
         if (uid == null || uid != usuarioDelCarrito || cargandoCarrito || cargandoCatalogo || guardandoCambio) {
@@ -272,7 +281,7 @@ fun NavGraph() {
         }
     }
 
-    // La barra inferior pertenece únicamente al módulo cliente.
+    // La navegación inferior se muestra solo en las rutas principales del cliente.
     val entradaActual by navController.currentBackStackEntryAsState()
     val rutaActual = entradaActual?.destination?.route
     val rutasPrincipales = setOf(Screen.Home.route, Screen.Purchases.route, Screen.Profile.route)
@@ -286,7 +295,7 @@ fun NavGraph() {
     val escalaCarrito = remember { Animatable(1f) }
     var cantidadAnterior by remember { mutableStateOf<Int?>(null) }
 
-    // El contador solo aumenta después de que cambiarCantidad confirmó el guardado.
+    // Anima el contador cuando aumenta la cantidad ya confirmada en el carrito.
     LaunchedEffect(cantidadCarrito) {
         val anterior = cantidadAnterior
         cantidadAnterior = cantidadCarrito
@@ -297,6 +306,7 @@ fun NavGraph() {
     }
 
 
+    // Estructura general: barra inferior del cliente y contenido de cada ruta.
     Scaffold(
         // El fondo detrás de la barra de estado también es morado en Mis pedidos.
         // safeDrawing reserva ese espacio fuera del contenido de PurchasesScreen.
@@ -372,11 +382,13 @@ fun NavGraph() {
                 label = "CarritoPegadoAlBorde"
             )
 
+            // Asocia cada ruta con su pantalla y los callbacks de navegación.
             NavHost(
                 navController = navController,
                 startDestination = Screen.Welcome.route,
                 modifier = Modifier.fillMaxSize()
             ) {
+                // Acceso inicial a inicio de sesión y registro.
                 composable(Screen.Welcome.route) {
                     WelcomeScreen(
                         onLogin = { navController.navigate(Screen.Login.route) {
@@ -388,6 +400,7 @@ fun NavGraph() {
                     )
                 }
 
+                // Tras autenticarse, dirige al cliente o administrador según su rol.
                 composable(Screen.Login.route) {
                     LoginScreen(
                         onNavigateToHome = {
@@ -411,6 +424,7 @@ fun NavGraph() {
                     )
                 }
 
+                // Solicita completar los datos faltantes de una cuenta autenticada.
                 composable(Screen.CompleteProfile.route) {
                     CompleteProfileScreen(onComplete = {
                         cargarCatalogoDeUsuario()
@@ -420,6 +434,7 @@ fun NavGraph() {
                     })
                 }
 
+                // Registro de cuentas nuevas.
                 composable(Screen.Register.route) {
                     RegisterScreen(
                         onRegisterSuccess = {
@@ -441,6 +456,7 @@ fun NavGraph() {
                     )
                 }
 
+                // Catálogo del cliente, con acceso al detalle de un libro.
                 composable(Screen.Home.route) {
                     if (cargandoCatalogo) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -459,6 +475,7 @@ fun NavGraph() {
                     )
                 }
 
+                // Detalle del libro seleccionado y acción de agregarlo al carrito.
                 composable(Screen.BookDetail.route) {
                     booksList.find { it.id == selectedBookId }?.let { book ->
                         BookDetailScreen(
@@ -480,6 +497,7 @@ fun NavGraph() {
                     }
                 }
 
+                // Operaciones del carrito coordinadas con Firestore.
                 composable(Screen.Cart.route) {
                     CartScreen(
                         cartItems = cartItems,
@@ -548,7 +566,7 @@ fun NavGraph() {
                 }
 
 
-                // Checkout de preparación: aún no genera pedidos, cobros ni modifica el carrito.
+                // Checkout prepara los datos; el pedido se registra en el paso de confirmación.
                 composable(Screen.Checkout.route) {
                     CheckoutScreen(
                         cartItems = cartItems,
@@ -578,7 +596,7 @@ fun NavGraph() {
                     )
                 }
 
-                // ETAPA 1: recibo de vista previa sin escritura de pedidos ni cobro.
+                // Muestra el recibo del pedido confirmado o vuelve atrás si no hay datos.
                 composable(Screen.ReceiptPreview.route) {
                     val preview = receiptPreview
                     if (preview == null) {
@@ -606,6 +624,7 @@ fun NavGraph() {
                     }
                 }
 
+                // Historial de pedidos de la cuenta autenticada.
                 composable(Screen.Purchases.route) {
                     PurchasesScreen(
                         onBackClick = {
@@ -795,7 +814,7 @@ fun NavGraph() {
                             )
                         }
 
-                        // La insignia ahora se monta SOBRE el círculo, en la esquina superior derecha.
+                        // Muestra la cantidad de unidades sobre el botón flotante del carrito.
                         if (cantidadCarrito > 0) {
                             Box(
                                 modifier = Modifier
@@ -820,6 +839,7 @@ fun NavGraph() {
         }
     } // Scaffold
 
+    // Bloquea temporalmente la interacción durante la carga o el guardado del carrito.
     // Diálogo modal: impide cambios mientras se lee/escribe en Firestore,
     // evitando operaciones concurrentes que dejen cantidades desincronizadas.
     if (cargandoCarrito || guardandoCambio) {
@@ -840,9 +860,7 @@ fun NavGraph() {
 }
 
 
-/**
- * Íconos Material Symbols para la navegación del cliente.
- */
+/** Selecciona el recurso gráfico y la descripción accesible de cada pestaña. */
 @Composable
 private fun ClienteNavigationIcon(
     tipo: String,

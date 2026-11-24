@@ -8,10 +8,11 @@ import com.google.firebase.ktx.Firebase
 
 /** Mantiene los perfiles antiguos sin sustituir documentos ni subcolecciones. */
 object UserProfileRepository {
+    // Acceso a la instancia de Firestore.
     private val db get() = Firebase.firestore
 
     /**
-     * Prepara el perfil en una transacción y SOLO agrega campos ausentes.
+     * Prepara el perfil en una transacción, completa campos ausentes y corrige niveles inválidos cuando corresponde.
      * Una cuenta con membresía previa nunca pierde puntos ni nivel al iniciar sesión.
      * Esta inicialización NO acredita puntos por compras.
      */
@@ -19,7 +20,9 @@ object UserProfileRepository {
         val ref = db.collection("users").document(user.uid)
         db.runTransaction { transaction ->
             val doc = transaction.get(ref)
+            // Reúne los campos que deben inicializarse o repararse.
             val missing = mutableMapOf<String, Any>()
+            // Las cuentas nuevas comienzan como clientes con membresía Bronce.
             if (!doc.exists()) {
                 missing["uid"] = user.uid
                 missing["email"] = user.email.orEmpty()
@@ -35,6 +38,7 @@ object UserProfileRepository {
 
                 // Nunca inicializar membresía en cuentas administrativas.
                 if (doc.getString("role") == null || doc.getString("role") == "customer") {
+                    // Admite puntos numéricos y registros antiguos almacenados como texto.
                     val pointsRaw = doc.get("loyaltyPoints")
                     val points = when (pointsRaw) {
                         is Number -> pointsRaw.toLong()
@@ -44,6 +48,7 @@ object UserProfileRepository {
                     val storedTier = doc.getString("membershipLevel")
                         ?.trim()?.uppercase(java.util.Locale.ROOT)
                     val validTier = storedTier in setOf("BRONCE", "PLATA", "ORO")
+                    // Completa la membresía según los datos disponibles, sin reiniciar saldos válidos.
                     when {
                         !doc.contains("loyaltyPoints") && !validTier -> {
                             missing["loyaltyPoints"] = 0L
@@ -63,7 +68,9 @@ object UserProfileRepository {
                     }
                 }
             }
+            // Merge conserva los demás campos del documento.
             if (missing.isNotEmpty()) transaction.set(ref, missing, SetOptions.merge())
+            // Devuelve si el perfil ya contiene los datos personales requeridos.
             doc.getString("firstName").orEmpty().isNotBlank() &&
                     doc.getString("lastName").orEmpty().isNotBlank() &&
                     isValidBirthDate(doc.getString("birthDate").orEmpty())
@@ -73,6 +80,7 @@ object UserProfileRepository {
             }
     }
 
+    /** Valida y guarda los datos necesarios para completar el perfil. */
     fun savePersonalInfo(
         user: FirebaseUser, firstName: String, lastName: String, birthDate: String,
         callback: (Boolean, String?) -> Unit
@@ -117,6 +125,7 @@ object UserProfileRepository {
         homeAddress: String,
         callback: (Boolean, String?) -> Unit
     ) {
+        // Normaliza los espacios antes de validar y guardar.
         val first = firstName.trim()
         val last = lastName.trim()
         val address = homeAddress.trim()
@@ -134,6 +143,7 @@ object UserProfileRepository {
             .addOnFailureListener { callback(false, it.localizedMessage ?: "No se pudo actualizar el perfil.") }
     }
 
+    /** Comprueba el formato ISO, la validez de la fecha y que no sea futura. */
     fun isValidBirthDate(value: String): Boolean = try {
         val formatter = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
         formatter.isLenient = false

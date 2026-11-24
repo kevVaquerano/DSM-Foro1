@@ -15,6 +15,7 @@ import java.util.Locale
 /** Pedidos de prueba: registra pedido, acredita puntos y descuenta inventario en una transacción.
  * NO cobra tarjetas. Requiere reglas de seguridad que validen estas escrituras. */
 object BookMasterOrderRepository {
+    // Registra la compra simulada y devuelve los datos del recibo mediante el callback.
     fun registrarPedido(
         draft: OrderReceiptPreview,
         paymentCardId: String,
@@ -22,6 +23,7 @@ object BookMasterOrderRepository {
     ) {
         val uid = Firebase.auth.currentUser?.uid
         if (uid == null) { callback(null, "Iniciá sesión para registrar el pedido"); return }
+        // Valida los límites de títulos, cantidades y datos de entrega antes de consultar Firestore.
         if (draft.items.size > 4) {
             callback(null, "Por ahora podés comprar hasta 4 títulos diferentes por pedido de prueba.")
             return
@@ -36,6 +38,7 @@ object BookMasterOrderRepository {
         // Firestore genera un ID aleatorio único para el pedido.
         val code = "BM-" + SimpleDateFormat("yyyy", Locale.US).format(Date()) + "-" +
                 orderRef.id.take(10).uppercase(Locale.ROOT)
+        // Referencias al perfil del usuario y a los documentos asociados al pedido.
         val userRef = db.collection("users").document(uid)
         val cardRef = userRef.collection("paymentMethods").document(paymentCardId)
         val itemRefs = draft.items.map { db.collection("books").document(it.bookId) }
@@ -49,6 +52,7 @@ object BookMasterOrderRepository {
             // Compras sin tiempo de espera entre pedidos.
             // Firestore valida cada pedido y sus cambios de inventario.
 
+            // Comprueba la tarjeta de prueba y que las cantidades coincidan con el carrito remoto.
             val cardDoc = tx.get(cardRef)
             if (!cardDoc.exists()) error("La tarjeta seleccionada ya no está disponible")
             val bookDocs = itemRefs.map { tx.get(it) }
@@ -58,6 +62,7 @@ object BookMasterOrderRepository {
                     error("El carrito cambió. Volvé al carrito y revisá las cantidades")
                 }
             }
+            // Determina el nivel de membresía a partir del saldo de puntos.
             val points = when (val raw = userDoc.get("loyaltyPoints")) {
                 is Number -> raw.toLong()
                 is String -> raw.toLongOrNull()
@@ -71,6 +76,7 @@ object BookMasterOrderRepository {
             }
             val storedLevel = userDoc.getString("membershipLevel")?.uppercase(Locale.ROOT)
             if (storedLevel !in setOf("BRONCE", "PLATA", "ORO")) error("Membresía no configurada")
+            // Consulta precios y existencias vigentes antes de preparar el detalle del recibo.
             val stockAfter = mutableListOf<Long>()
             val lines = draft.items.mapIndexed { index, item ->
                 val book = bookDocs[index]
@@ -87,6 +93,7 @@ object BookMasterOrderRepository {
                 if (name.isBlank()) error("Libro sin nombre")
                 OrderReceiptItem(item.bookId, name, item.quantity, price)
             }
+            // Calcula importes con BigDecimal y redondeo a dos decimales.
             fun cents(n: Double): BigDecimal = BigDecimal.valueOf(n).setScale(2, RoundingMode.HALF_UP)
             val subtotalBD = lines.fold(BigDecimal.ZERO) { acc, item ->
                 acc + cents(item.unitPrice).multiply(BigDecimal(item.quantity))
@@ -107,6 +114,7 @@ object BookMasterOrderRepository {
                 newPoints >= 200L -> "PLATA"
                 else -> "BRONCE"
             }
+            // Valida la marca y los últimos cuatro dígitos de la tarjeta simulada.
             val brand = cardDoc.getString("brand") ?: error("Tarjeta sin marca")
             val lastFour = cardDoc.getString("lastFour") ?: error("Tarjeta sin terminación")
             if (brand !in listOf("Visa", "Mastercard") || !lastFour.matches(Regex("[0-9]{4}"))) {
@@ -119,12 +127,14 @@ object BookMasterOrderRepository {
             ))
             val estimateLabel = DemoDeliveryTimeline.formatDate(estimateDate.time)
 
+            // Construye el recibo con los importes y datos verificados en la transacción.
             val snapshot = draft.copy(
                 code = code, date = "", paymentBrand = brand, paymentLastFour = lastFour,
                 membershipLevel = level, pickupEstimate = estimateLabel, items = lines, subtotal = subtotalBD.toDouble(),
                 discount = discountBD.toDouble(), shipping = shippingBD.toDouble(),
                 total = finalBD.toDouble(), pointsPending = pointsEarned.toInt(), status = "PENDIENTE"
             )
+            // Guarda también los importes como centavos enteros para las validaciones de Firestore.
             val subtotalCents = subtotalBD.movePointRight(2).longValueExact()
             val discountCents = discountBD.movePointRight(2).longValueExact()
             val shippingCents = shippingBD.movePointRight(2).longValueExact()
@@ -160,6 +170,7 @@ object BookMasterOrderRepository {
                 "membershipLevel" to newLevel,
                 "lastDemoOrderId" to orderRef.id
             ))
+            // Descuenta las unidades compradas del inventario.
             itemRefs.forEachIndexed { index, ref ->
                 tx.update(ref, mapOf(
                     "stock" to stockAfter[index],
@@ -203,6 +214,7 @@ object BookMasterOrderRepository {
         if (orderId.isBlank()) { callback(false, "Pedido inválido"); return }
 
         val db = Firebase.firestore
+        // Referencias al perfil del usuario y a los documentos asociados al pedido.
         val userRef = db.collection("users").document(uid)
         val orderRef = userRef.collection("orders").document(orderId)
         // Lectura inicial para conocer los libros; se vuelve a validar todo en la transacción.
@@ -211,6 +223,7 @@ object BookMasterOrderRepository {
                 callback(false, "Pedido no disponible")
                 return@addOnSuccessListener
             }
+            // Recupera las cantidades originales para identificar los documentos de inventario.
             val originalQuantities = (initial.get("bookQuantities") as? Map<*, *>)
                 ?.mapNotNull { (id, value) ->
                     val bookId = id as? String ?: return@mapNotNull null
@@ -232,13 +245,16 @@ object BookMasterOrderRepository {
                     error("Este pedido no pertenece a tu cuenta")
                 if (order.getString("status") != "PENDIENTE" || order.getBoolean("editUsed") == true)
                     error("Este pedido ya no se puede cancelar")
+                // Comprueba el plazo de cinco minutos usando la fecha registrada y el reloj del dispositivo.
                 val createdAt = order.getTimestamp("createdAt")?.toDate()?.time
                     ?: error("Fecha de compra no disponible")
                 val now = System.currentTimeMillis()
                 if (now < createdAt || now >= createdAt + 300_000L)
                     error("Finalizaron los cinco minutos para cancelar")
+                // La cancelación está limitada al pedido más reciente del usuario.
                 if (user.getString("lastDemoOrderId") != orderId)
                     error("Solo se puede cancelar la compra más reciente")
+                // Verifica que el detalle no haya cambiado desde la lectura inicial.
                 val currentQuantities = (order.get("bookQuantities") as? Map<*, *>)
                     ?.mapNotNull { (id, value) ->
                         val bookId = id as? String ?: return@mapNotNull null
@@ -253,6 +269,7 @@ object BookMasterOrderRepository {
                 if (originalItems.size != originalQuantities.size || originalIds.toSet() != originalQuantities.keys)
                     error("El pedido tiene un detalle inconsistente")
 
+                // Revierte los puntos acreditados y recalcula el nivel de membresía.
                 val oldPoints = order.getLong("pointsEarned") ?: error("Faltan los puntos del pedido")
                 val pointsNow = user.getLong("loyaltyPoints") ?: error("Puntos no disponibles")
                 if (oldPoints < 0L || pointsNow < oldPoints) error("No se pueden revertir los puntos")
@@ -266,6 +283,7 @@ object BookMasterOrderRepository {
                 if (originalLevel != newLevel)
                     error("Los puntos del pedido no coinciden con la membresía original")
 
+                // Devuelve al inventario las unidades del pedido cancelado.
                 bookRefs.forEachIndexed { index, ref ->
                     val oldStock = books[index].getLong("stock") ?: error("Existencias no disponibles")
                     val restored = oldStock + (originalQuantities[ref.id] ?: 0L)
@@ -277,6 +295,7 @@ object BookMasterOrderRepository {
                     tx.update(userRef, mapOf("loyaltyPoints" to newPoints, "membershipLevel" to newLevel))
                 }
                 // Se conserva lastDemoOrderId para identificar el ultimo pedido.
+                // Conserva el pedido cancelado, pero vacía el detalle y pone sus importes a cero.
                 tx.update(orderRef, mapOf(
                     "status" to "CANCELADO",
                     "editUsed" to true,

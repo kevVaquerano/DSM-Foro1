@@ -51,6 +51,7 @@ import java.net.URL
 import java.io.File
 import java.util.Locale
 
+// Paleta de colores del módulo administrativo.
 private val AdminBlue = Color(0xFF2864B4)
 private val AdminNavy = Color(0xFF173B73)
 private val AdminPale = Color(0xFFF1F6FD)
@@ -58,7 +59,7 @@ private val AdminLine = Color(0xFFDCE6F4)
 private val AdminRed = Color(0xFFD64545)
 
 // Se admiten letras Unicode (á, é, í, ó, ú, ü, ñ), espacios y números solo en títulos.
-// Sin signos, emojis, espacios repetidos ni cadenas formadas solo por números.
+// No se admiten signos, emojis ni espacios internos repetidos. El título puede contener solo números.
 private val editTitlePattern = Regex("^[\\p{L}\\p{M}0-9]+(?: [\\p{L}\\p{M}0-9]+)*$")
 private val editAuthorPattern = Regex("^[\\p{L}\\p{M}]+(?: [\\p{L}\\p{M}]+)*$")
 private fun editTitleIsValid(text: String): Boolean {
@@ -71,6 +72,7 @@ private fun editAuthorIsValid(text: String): Boolean {
 }
 
 
+// La URL es opcional; si existe, debe cumplir las condiciones HTTPS.
 private fun editHttpsValid(value: String): Boolean = value.isBlank() || try {
     val parsed = java.net.URI(value.trim())
     parsed.scheme.equals("https", ignoreCase = true) && !parsed.host.isNullOrBlank() &&
@@ -78,6 +80,7 @@ private fun editHttpsValid(value: String): Boolean = value.isBlank() || try {
 } catch (_: Exception) { false }
 
 
+// Datos necesarios para identificar y mostrar cada libro en el listado.
 private data class EditableBook(
     val id: String,
     val title: String,
@@ -100,6 +103,7 @@ private object AdminLocalCoverStorage {
         return File(folder, "$safeId.jpg")
     }
 
+    // Reduce las dimensiones de la imagen durante la lectura para limitar el uso de memoria.
     suspend fun decodeSelected(context: Context, uri: Uri): Bitmap? =
         withContext(Dispatchers.IO) {
             try {
@@ -119,6 +123,7 @@ private object AdminLocalCoverStorage {
             } catch (_: Exception) { null }
         }
 
+    // El archivo marcador impide volver a mostrar una portada retirada localmente.
     private fun hiddenFile(context: Context, id: String): File =
         File(coverFile(context, id).absolutePath + ".hidden")
 
@@ -154,7 +159,7 @@ private object AdminLocalCoverStorage {
         }
 }
 
-/** Prioridad: foto local elegida, URL HTTPS, portada drawable original. */
+/** Muestra la portada local, remota o drawable, salvo que esté marcada como oculta. */
 @Composable
 private fun AdminBookCover(
     bookId: String, imageUrl: String, modifier: Modifier = Modifier, reloadKey: Int = 0
@@ -284,13 +289,14 @@ private fun AdminEditField(
     }
 }
 
-/** Mantiene la misma firma que usa NavGraph: AdminEditBookScreen(onBackClick = ...). */
+/** Permite buscar, editar y eliminar libros del catálogo administrativo. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminEditBookScreen(onBackClick: () -> Unit) {
     val db = remember { Firebase.firestore }
     val context = LocalContext.current
     val uid = Firebase.auth.currentUser?.uid
+    // Estados del catálogo, búsqueda y selección del libro.
     var books by remember { mutableStateOf<List<EditableBook>>(emptyList()) }
     var loadingList by remember { mutableStateOf(true) }
     var loadingBook by remember { mutableStateOf(false) }
@@ -305,6 +311,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
     var pendingDelete by remember { mutableStateOf<EditableBook?>(null) }
     var deleting by remember { mutableStateOf(false) }
 
+    // Datos editables del libro seleccionado.
     var title by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
     var titleTouched by remember { mutableStateOf(false) }
@@ -325,6 +332,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
     var coverAction by remember { mutableStateOf("none") } // none, replace, remove
     var readingCover by remember { mutableStateOf(false) }
     var coverReloadKey by remember { mutableIntStateOf(0) }
+    // Abre el selector de imágenes y conserva la selección como vista previa.
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val currentId = selectedId
         if (uri != null && currentId != null && !readingCover && !saving) {
@@ -344,6 +352,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
         }
     }
 
+    // Recupera la portada local al seleccionar otro libro o guardar un cambio.
     LaunchedEffect(selectedId, coverReloadKey) {
         val currentId = selectedId ?: return@LaunchedEffect
         val hidden = AdminLocalCoverStorage.isHidden(context, currentId)
@@ -356,6 +365,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
     }
 
 
+    // Carga los datos del documento de Firestore en los campos del formulario.
     fun loadDocument(doc: DocumentSnapshot) {
         title = doc.getString("title").orEmpty()
         author = doc.getString("author").orEmpty()
@@ -372,6 +382,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
         imageUrl = doc.getString("imageUrl").orEmpty()
     }
 
+    // Consulta los libros activos y descarta respuestas de una sesión anterior.
     fun refreshBooks() {
         if (uid == null) { loadingList = false; error = "Iniciá sesión como administrador."; return }
         loadingList = true
@@ -400,6 +411,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
 
     LaunchedEffect(uid) { refreshBooks() }
 
+    // Genera las categorías del catálogo y filtra por título, autor o ISBN.
     val categories = listOf("Todos") + books.map { it.category.trim() }
         .filter { it.isNotBlank() }.distinct().sorted()
     val results = books.filter { b ->
@@ -408,6 +420,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
                         b.author.contains(search.trim(), true) || b.isbn.contains(search.trim(), true))
     }
 
+    // Normaliza los valores antes de verificar si pueden guardarse.
     val cleanIsbn = isbn.filter(Char::isDigit)
     val p = price.replace(',', '.').toDoubleOrNull()
     val r = rating.replace(',', '.').toDoubleOrNull()
@@ -415,7 +428,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
     val a = minimumAge.toLongOrNull()
     val y = year.toLongOrNull()
     val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
-    // Título y autor admiten Unicode (á, é, í, ó, ú, ü, ñ); solo se valida longitud.
+    // Valida formato y longitud de título y autor, además de los demás campos del formulario.
     val valid = editTitleIsValid(title) && editAuthorIsValid(author) &&
             (isbn.isBlank() || (cleanIsbn.length in listOf(10, 13) &&
                     isbn.all { it.isDigit() || it == '-' || it == ' ' })) &&
@@ -453,6 +466,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
             }
         }
 
+        // Alterna entre el listado del catálogo y el formulario de edición.
         if (selectedId == null) {
             Column(Modifier.fillMaxSize().padding(horizontal = 17.dp)) {
                 Spacer(Modifier.height(17.dp))
@@ -790,6 +804,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
                         val id = selectedId ?: return@Button
                         if (!valid || saving || Firebase.auth.currentUser?.uid != uid) return@Button
                         saving = true; notice = null
+                        // Actualiza los campos editables sin reemplazar el documento completo.
                         val changes: Map<String, Any> = mapOf(
                             "title" to title.trim(), "author" to author.trim(),
                             "isbn" to cleanIsbn, "category" to category.trim(),
@@ -807,6 +822,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
                                             imageUrl = imageUrl.trim()) else it
                                     }.sortedBy { safeBookTitle(it).lowercase() }
                                 }
+                                // Aplica el cambio de portada local después de guardar en Firestore.
                                 val action = coverAction
                                 val pendingBitmap = selectedLocalCover
                                 if (action == "none") {
@@ -847,6 +863,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
         }
     }
 
+    // Solicita confirmación antes de eliminar definitivamente un libro.
     pendingDelete?.let { book ->
         AlertDialog(
             onDismissRequest = { if (!deleting) pendingDelete = null },
@@ -864,7 +881,7 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
             },
             text = {
                 Text(
-                    "¿Retirar «${safeBookTitle(book)}» del catálogo? Ya no aparecerá para los clientes y su stock quedará en 0. Los pedidos anteriores se conservarán.",
+                    "¿Eliminar definitivamente «${safeBookTitle(book)}»? Se borrará su documento de Firestore y desaparecerá del catálogo. Esta acción no se puede deshacer.",
                     color = AdminNavy,
                     fontSize = 14.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -886,19 +903,20 @@ fun AdminEditBookScreen(onBackClick: () -> Unit) {
                         onClick = {
                             if (deleting || Firebase.auth.currentUser?.uid != uid || uid == null) return@Button
                             deleting = true
+                            // Elimina definitivamente el documento de la colección books.
                             db.collection("books").document(book.id)
-                                .update(mapOf("isActive" to false, "stock" to 0L))
+                                .delete()
                                 .addOnSuccessListener {
                                     if (Firebase.auth.currentUser?.uid == uid) {
                                         books = books.filterNot { it.id == book.id }
-                                        Toast.makeText(context, "Libro retirado del catálogo", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "Libro eliminado de Firestore", Toast.LENGTH_LONG).show()
                                     }
                                     pendingDelete = null
                                     deleting = false
                                 }
                                 .addOnFailureListener { ex ->
                                     deleting = false
-                                    Toast.makeText(context, "No se pudo retirar: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "No se pudo eliminar: ${ex.localizedMessage}", Toast.LENGTH_LONG).show()
                                 }
                         },
                         enabled = !deleting,

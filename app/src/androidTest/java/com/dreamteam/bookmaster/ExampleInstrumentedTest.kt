@@ -9,16 +9,17 @@ import org.junit.runner.RunWith
 import org.junit.Assert.*
 
 /**
- * Instrumented test, which will execute on an Android device.
+ * Prueba instrumentada que se ejecuta en un dispositivo Android o emulador.
  *
- * See [testing documentation](http://d.android.com/tools/testing).
+ * Consulta la [documentación de pruebas](http://d.android.com/tools/testing).
  */
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
-        // Context of the app under test.
+        // Obtiene el contexto de la aplicación sometida a prueba.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
+        // Comprueba que el nombre del paquete corresponde a BookMaster.
         assertEquals("com.dreamteam.bookmaster", appContext.packageName)
     }
 }

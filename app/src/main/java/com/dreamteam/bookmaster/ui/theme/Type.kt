@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.sp
  */
 val Typography = Typography(
 
-    // Estilo principal para los textos de contenido.
+    // Estilo bodyLarge de Material 3 para textos de contenido.
     bodyLarge = TextStyle(
 
         // Utiliza la fuente predeterminada del sistema.
@@ -23,13 +23,13 @@ val Typography = Typography(
         // Mantiene un grosor normal para facilitar la lectura.
         fontWeight = FontWeight.Normal,
 
-        // Tamaño de la letra.
+        // Tamaño del texto: 16 sp, adaptable a la escala de fuente del usuario.
         fontSize = 16.sp,
 
-        // Espacio vertical entre las líneas del texto.
+        // Altura de línea de 24 sp.
         lineHeight = 24.sp,
 
-        // Separación adicional entre caracteres.
+        // Espaciado entre caracteres de 0.5 sp.
         letterSpacing = 0.5.sp
     )
 )

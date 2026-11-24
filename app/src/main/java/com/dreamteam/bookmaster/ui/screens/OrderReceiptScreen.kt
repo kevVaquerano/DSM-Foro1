@@ -51,6 +51,7 @@ data class OrderReceiptItem(
     val unitPrice: Double
 )
 
+// Datos del pedido utilizados tanto en pantalla como al exportar el recibo.
 data class OrderReceiptPreview(
     val recipient: String,
     val date: String,
@@ -83,12 +84,14 @@ fun OrderReceiptScreen(
     val muted = Color(0xFF61566C)
     val pale = Color(0xFFFCFAFF)
     fun money(n: Double) = String.format(Locale.US, "$%.2f", n)
+    // Obtiene el porcentaje de descuento y los puntos asociados al recibo.
     val rate = MembershipPricing.rate(receipt.membershipLevel).multiply(java.math.BigDecimal(100)).toInt()
     val pointsPreview = receipt.pointsPending
 
     // El recibo solo ofrece volver al inicio: no regresamos al Checkout.
     BackHandler(enabled = true) { }
 
+    // Ajusta el color de la barra de estado al encabezado del recibo.
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             @Suppress("DEPRECATION")
@@ -97,6 +100,7 @@ fun OrderReceiptScreen(
         }
     }
 
+    // Abre el selector de destino de Android para guardar el archivo PDF.
     val savePdf = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri ->
@@ -125,6 +129,7 @@ fun OrderReceiptScreen(
         }
     }
 
+    // Distribuye el encabezado, los datos del pedido y las acciones finales.
     Column(Modifier.fillMaxSize().background(pale)) {
         Box(Modifier.fillMaxWidth().background(dark).statusBarsPadding().height(62.dp)) {
             Text("Recibo de compra", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold,
@@ -244,6 +249,7 @@ fun OrderReceiptScreen(
                             size = Size(fullWidth, size.height - 1.dp.toPx())
                         )
                     }
+                    // Presenta los importes del pedido y los puntos obtenidos.
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         ReceiptAmountRow("Subtotal:", money(receipt.subtotal), dark)
                         ReceiptAmountRow(
@@ -277,6 +283,7 @@ fun OrderReceiptScreen(
                 }
             }
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                // Permite exportar el recibo o regresar al inicio.
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = { savePdf.launch("BookMaster_${receipt.code}.pdf") },
                         modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(12.dp)) {
@@ -336,6 +343,7 @@ private fun ReceiptAmountRow(
 /** Comprueba que el documento generado tenga al menos una página representable. */
 private fun comprobarPdf(archivo: File) {
     require(archivo.length() > 500L) { "El PDF generado está vacío o incompleto" }
+    // Renderiza la primera página para verificar que tenga contenido visible.
     val descriptor = ParcelFileDescriptor.open(archivo, ParcelFileDescriptor.MODE_READ_ONLY)
     PdfRenderer(descriptor).use { renderer ->
         require(renderer.pageCount > 0) { "El PDF no contiene páginas" }
@@ -366,6 +374,7 @@ private fun comprobarPdf(archivo: File) {
 private fun exportPreviewReceiptPdf(receipt: OrderReceiptPreview, output: java.io.OutputStream) {
     val pdf = PdfDocument()
     try {
+        // Prepara una página de tamaño A4 y el lienzo de dibujo.
         val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
         val page = pdf.startPage(pageInfo)
         val canvas = page.canvas
@@ -376,6 +385,7 @@ private fun exportPreviewReceiptPdf(receipt: OrderReceiptPreview, output: java.i
             typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
         }
         var y = 54f
+        // Escribe una línea y avanza la posición vertical del texto.
         fun line(value: String, fontSize: Float = 13f) {
             ink.textSize = fontSize
             canvas.drawText(value.take(85), 42f, y, ink)
@@ -395,6 +405,7 @@ private fun exportPreviewReceiptPdf(receipt: OrderReceiptPreview, output: java.i
         line("Membresía: ${receipt.membershipLevel}")
         y += 8f
         line("ARTICULOS", 15f)
+        // Limita el listado exportado a 16 artículos.
         receipt.items.take(16).forEach { item ->
             line("${item.quantity} x ${item.title.take(40)}  =  ${String.format(Locale.US, "$%.2f", item.quantity * item.unitPrice)}")
         }
@@ -404,6 +415,7 @@ private fun exportPreviewReceiptPdf(receipt: OrderReceiptPreview, output: java.i
         line("Envío: ${String.format(Locale.US, "$%.2f", receipt.shipping)}")
         line("TOTAL: ${String.format(Locale.US, "$%.2f", receipt.total)}", 16f)
         if (receipt.pointsPending > 0) line("Puntos obtenidos: ${receipt.pointsPending}")
+        // Finaliza la página y escribe el documento en el flujo de salida.
         pdf.finishPage(page)
         pdf.writeTo(output)
     } finally {

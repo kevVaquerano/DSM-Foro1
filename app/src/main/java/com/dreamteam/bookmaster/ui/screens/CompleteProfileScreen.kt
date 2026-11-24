@@ -48,16 +48,19 @@ import kotlinx.coroutines.withContext
 /** Completa un perfil antiguo o de Google sin volver a pedir correo ni contraseña. */
 @Composable
 fun CompleteProfileScreen(onComplete: () -> Unit) {
+    // Sesión activa, acceso a Firestore y corrutinas para las operaciones locales.
     val context = LocalContext.current
     val user = remember { Firebase.auth.currentUser }
     val db = remember { Firebase.firestore }
     val scope = rememberCoroutineScope()
 
+    // Paleta visual compartida con las pantallas de autenticación.
     val morado = Color(0xFF7952B5)
     val moradoOscuro = Color(0xFF473071)
     val fondoLila = Color(0xFFD8C9F0)
     val fondoCampo = Color(0xFFE7E4EB)
 
+    // Datos del formulario y estados de carga, guardado y error.
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var birthDate by remember { mutableStateOf("") }
@@ -99,6 +102,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
             if (!photoRemoved && selectedPhoto == null) selectedPhoto = bitmap
         }
 
+        // Los nombres registrados en Firestore tienen prioridad sobre los de Google.
         db.collection("users").document(user.uid).get()
             .addOnSuccessListener { doc ->
                 firstName = doc.getString("firstName")?.takeIf { it.isNotBlank() } ?: firstName
@@ -112,6 +116,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
             }
     }
 
+    // Selecciona una imagen del dispositivo y la procesa fuera del hilo principal.
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             loadingPhoto = true
@@ -239,6 +244,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                 Text("Foto de perfil (opcional)", fontSize = 13.sp, color = moradoOscuro)
                 Spacer(Modifier.height(31.dp))
 
+                // Componente reutilizable para los campos de nombres y apellidos.
                 @Composable
                 fun field(label: String, hint: String, value: String, onChange: (String) -> Unit) {
                     Text(label, fontWeight = FontWeight.SemiBold, color = moradoOscuro,
@@ -265,6 +271,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                 field("Nombres:", "Ingresa tus nombres", firstName) { firstName = it }
                 field("Apellidos:", "Ingresa tus apellidos", lastName) { lastName = it }
 
+                // Muestra la fecha en formato día/mes/año sin cambiar su formato de almacenamiento.
                 Text("Fecha de nacimiento:", fontWeight = FontWeight.SemiBold,
                     color = moradoOscuro, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(5.dp))
@@ -299,6 +306,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                 }
 
                 Spacer(Modifier.height(34.dp))
+                // Presenta los errores de consulta, validación o guardado.
                 error?.let {
                     Text(it, color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
@@ -310,6 +318,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                             error = "Sesión no iniciada."
                             return@Button
                         }
+                        // Valida la fecha de nacimiento con un calendario no permisivo.
                         val hoy = Calendar.getInstance().apply {
                             set(Calendar.HOUR_OF_DAY, 0)
                             set(Calendar.MINUTE, 0)
@@ -333,6 +342,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                         }
                         working = true
                         error = null
+                        // Guarda los datos personales mediante el repositorio del perfil.
                         UserProfileRepository.savePersonalInfo(
                             user, firstName, lastName, birthDate
                         ) { ok, message ->
@@ -351,6 +361,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                                         context, "Perfil guardado, pero no se pudo guardar la fotografía.",
                                         Toast.LENGTH_LONG
                                     ).show()
+                                    // Continúa al finalizar el guardado del perfil, incluso si falla la foto opcional.
                                     onComplete()
                                 }
                             }
@@ -361,6 +372,7 @@ fun CompleteProfileScreen(onComplete: () -> Unit) {
                     colors = ButtonDefaults.buttonColors(containerColor = morado),
                     shape = RoundedCornerShape(9.dp)
                 ) {
+                    // Muestra el indicador mientras se consulta o guarda el perfil.
                     if (working || loadingProfile) {
                         CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                     } else {

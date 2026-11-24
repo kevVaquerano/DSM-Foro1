@@ -35,7 +35,7 @@ import com.dreamteam.bookmaster.ui.theme.BookMasterBackground
 
 /**
  * Modelo que almacena la información de cada libro.
- * Incluye sus datos principales, precio, existencias y el color utilizado para representar su portada.
+ * Incluye datos bibliográficos, precio, existencias y datos asociados a la portada.
  */
 data class Book(
     val id: String,
@@ -63,8 +63,8 @@ data class CartItem(
 
 /**
  * Pantalla principal de BookMaster.
- * Permite explorar el catálogo, buscar libros por título o autor, filtrar categorías,
- * acceder al historial de compras y gestionar el carrito.
+ * Recibe el catálogo, permite buscar por título o autor y filtrar por categoría.
+ * Delega la apertura del detalle al callback onBookClick.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +87,7 @@ fun HomeScreen(
         mutableStateOf("Todos")
     }
 
-    // Categorías disponibles para organizar el catálogo.
+    // Categorías fijas del filtro; no se generan a partir del catálogo recibido.
     val categories = remember {
         listOf(
             "Todos",
@@ -100,7 +100,7 @@ fun HomeScreen(
         )
     }
 
-    // Saludo basado en la hora local del dispositivo al abrir la pantalla.
+    // Saludo según la hora local del dispositivo.
     val horaActual = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val saludo = when (horaActual) {
         in 5..11 -> "Buenos días"
@@ -108,10 +108,11 @@ fun HomeScreen(
         else -> "Buenas noches"
     }
     val contexto = LocalContext.current
-    // Logo ya utilizado en la pantalla de bienvenida; si no existe, no falla.
+    // Busca el recurso del logo; solo se muestra si existe.
     val logoId = remember(contexto.packageName) {
         contexto.resources.getIdentifier("bookmaster_icon1", "drawable", contexto.packageName)
     }
+    // Estado del carrusel y ámbito de corrutinas para desplazar los filtros.
     val carouselState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -141,7 +142,7 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Saludo simple: misma posición del encabezado original, sin tarjeta ni fondo.
+            // Encabezado con saludo y logo.
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -323,7 +324,7 @@ fun BookCard(
     val darkBlueText = BookMasterDarkPurple
     val priceGreen = BookMasterDarkPurple
 
-    // Usa el ID de Firestore para buscar la portada local en res/drawable.
+    // Busca la portada incluida en res/drawable mediante el ID del libro.
     // Ejemplo: books/libro_001 -> drawable/libro_001.jpg (o png/webp).
     val context = LocalContext.current
     val coverResource = remember(book.id) {
@@ -345,9 +346,7 @@ fun BookCard(
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
-            // Vista previa del tercio superior de la portada, donde suele estar el título.
-            // Crop recorta sin deformar y TopCenter evita centrar el recorte vertical.
-            // BookDetailScreen mantiene ContentScale.Fit para la portada completa.
+            // Vista previa de la portada: Crop conserva las proporciones y TopCenter prioriza la parte superior.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -372,7 +371,7 @@ fun BookCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Distribución: título / calificación, autor, precio / stock.
+            // Título y calificación; los textos largos se limitan con puntos suspensivos.
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -412,6 +411,7 @@ fun BookCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            // Precio con dos decimales y disponibilidad según las existencias.
             Spacer(Modifier.height(17.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -428,6 +428,7 @@ fun BookCard(
                     text = if (book.stock > 0) "Stock: ${book.stock}" else "Agotado",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.SemiBold,
+                    // Rojo: menos de 10; amarillo: 10; verde: más de 10.
                     color = when {
                         book.stock < 10 -> Color(0xFFC62828)
                         book.stock == 10 -> Color(0xFF9A6700)

@@ -52,6 +52,7 @@ private data class PurchaseOrder(
     val editedAtMillis: Long?
 )
 
+// Datos mínimos de cada artículo para mostrar el historial.
 private data class PurchaseLine(val title: String, val quantity: Int)
 
 /**
@@ -69,6 +70,7 @@ private fun saveCancelledLines(context: Context, uid: String, orderId: String, l
         .edit().putString(orderId, array.toString()).apply()
 }
 
+// Recupera el detalle local de un pedido cancelado para la cuenta correspondiente.
 private fun readCancelledLines(context: Context, uid: String, orderId: String): List<PurchaseLine> {
     val raw = context.getSharedPreferences("bookmaster_cancelled_orders_$uid", Context.MODE_PRIVATE)
         .getString(orderId, null) ?: return emptyList()
@@ -94,6 +96,7 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
     val purple = BookMasterPurple
     val pale = Color(0xFFFCFAFF)
 
+    // Estados del historial y de la solicitud de cancelación.
     var orders by remember(uid) { mutableStateOf<List<PurchaseOrder>>(emptyList()) }
     var loading by remember(uid) { mutableStateOf(uid != null) }
     var errorText by remember(uid) { mutableStateOf<String?>(null) }
@@ -138,6 +141,7 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
                         return@addSnapshotListener
                     }
                     errorText = null
+                    // Convierte los documentos de Firestore en modelos para la interfaz.
                     orders = snapshot?.documents?.map { doc ->
                         val purchaseLines = (doc.get("items") as? List<*>)
                             .orEmpty().mapNotNull { raw ->
@@ -171,6 +175,7 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
         }
     }
 
+    // Solicita confirmación antes de iniciar la transacción de cancelación.
     cancelTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { if (!cancelling) cancelTarget = null },
@@ -276,6 +281,7 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
             }
         }
 
+        // Presenta errores, carga, ausencia de pedidos o el listado filtrado.
         actionError?.let { message ->
             Text(message, color = Color(0xFFB13A4E), modifier = Modifier.padding(12.dp))
         }
@@ -313,6 +319,7 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
     }
 }
 
+/** Tarjeta con el resumen, estado, importe y plazo de cancelación del pedido. */
 @Composable
 private fun PurchaseOrderCard(
     order: PurchaseOrder, nowMillis: Long,
@@ -324,6 +331,7 @@ private fun PurchaseOrderCard(
         if (created <= Long.MAX_VALUE - 300_000L) created + 300_000L else Long.MAX_VALUE
     }
     val remainingMillis = cancellationDeadlineMillis?.let { (it - nowMillis).coerceAtLeast(0L) }
+    // Solo el pedido más reciente, pendiente y sin edición previa puede cancelarse dentro del plazo.
     val cancellationWindowOpen = isLatestOrder && order.status == "PENDIENTE" && !order.editUsed &&
             remainingMillis != null && remainingMillis > 0L
     val units = order.items.sumOf { it.quantity }
@@ -333,6 +341,7 @@ private fun PurchaseOrderCard(
     val computedStatus = if (order.editUsed && timelineStatus == "PENDIENTE") "EN_PREPARACION" else timelineStatus
     val dark = BookMasterDarkPurple
     val purple = BookMasterPurple
+    // Traduce los estados internos a etiquetas visibles para el cliente.
     val statusLabel = when (computedStatus) {
         "PENDIENTE" -> "Pendiente"
         "PREPARACION", "EN_PREPARACION" -> "En preparación"
@@ -365,6 +374,7 @@ private fun PurchaseOrderCard(
                     fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f),
                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.width(8.dp))
+                // Colores de identificación según el estado del pedido.
                 val (badgeBackground, badgeText) = when (computedStatus) {
                     "PENDIENTE" -> Color(0xFFFCE8E8) to Color(0xFFB42332)
                     "EN_PREPARACION", "PREPARACION" -> Color(0xFFFFF0C2) to Color(0xFF926000)
@@ -417,13 +427,14 @@ private fun PurchaseOrderCard(
                 Text("$modeLabel estimado: ${DemoDeliveryTimeline.formatDate(estimated)}",
                     color = dark, fontSize = 13.sp)
             }
-            // Estado del plazo de edición, calculado a partir del timestamp original.
-            // No habilitamos botones sin disponer antes de transacciones seguras.
+            // Plazo de cancelación calculado desde la fecha original del pedido.
+            // El contador solo aparece cuando la cancelación está disponible.
             if (order.status == "PENDIENTE" && computedStatus !in setOf("CANCELADO", "CANCELLED")) {
                 if (remainingMillis == null) {
                     Text("Esperando fecha oficial para calcular el plazo de cancelación…",
                         color = Color.Gray, fontSize = 12.sp)
                 } else if (cancellationWindowOpen) {
+                    // Redondea los segundos restantes hacia arriba para el contador visible.
                     val seconds = (remainingMillis + 999L) / 1000L
                     val minutesText = (seconds / 60L).toString().padStart(2, '0')
                     val secondsText = (seconds % 60L).toString().padStart(2, '0')

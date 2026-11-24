@@ -52,9 +52,11 @@ object DemoPaymentStore {
     var error by mutableStateOf<String?>(null)
         private set
 
+    // Colección de métodos de pago asociada exclusivamente al usuario.
     private fun collection(uid: String) = db.collection("users").document(uid).collection("paymentMethods")
     private fun currentUid(): String? = Firebase.auth.currentUser?.uid?.takeIf { it == ownerUid }
 
+    // Cambia la cuenta observada y descarta los datos de la sesión anterior.
     fun forUser(uid: String?) {
         if (ownerUid == uid && (listener != null || uid == null)) return
         listener?.remove()
@@ -74,6 +76,7 @@ object DemoPaymentStore {
             }
             error = null
             val documents = snapshots?.documents.orEmpty()
+            // Convierte únicamente documentos con marca y terminación válidas.
             val loaded = documents.mapNotNull { doc ->
                 val brand = doc.getString("brand") ?: return@mapNotNull null
                 val lastFour = doc.getString("lastFour") ?: return@mapNotNull null
@@ -82,11 +85,13 @@ object DemoPaymentStore {
             }
             cards.clear()
             cards.addAll(loaded.sortedBy { it.brand + it.lastFour })
+            // Recupera la tarjeta predeterminada o utiliza la primera disponible.
             defaultId = documents.firstOrNull { it.getBoolean("isDefault") == true && loaded.any { c -> c.id == it.id } }?.id
                 ?: loaded.firstOrNull()?.id
         }
     }
 
+    // Guarda los metadatos de la tarjeta y actualiza la preferencia en un mismo lote.
     private fun save(card: DemoPaymentCard, preferred: Boolean, callback: (Boolean, String?) -> Unit) {
         val uid = currentUid() ?: run { callback(false, "Sesión no iniciada"); return }
         val ref = collection(uid).document(card.id)
@@ -110,6 +115,7 @@ object DemoPaymentStore {
     fun add(card: DemoPaymentCard, preferred: Boolean, callback: (Boolean, String?) -> Unit) = save(card, preferred, callback)
     fun update(card: DemoPaymentCard, preferred: Boolean, callback: (Boolean, String?) -> Unit) = save(card, preferred, callback)
 
+    // Cambia la tarjeta predeterminada mediante una escritura por lotes.
     fun select(id: String, callback: (Boolean, String?) -> Unit = { _, _ -> }) {
         val uid = currentUid() ?: run { callback(false, "Sesión no iniciada"); return }
         if (cards.none { it.id == id }) { callback(false, "Tarjeta no encontrada"); return }
@@ -121,6 +127,7 @@ object DemoPaymentStore {
             .addOnFailureListener { callback(false, it.localizedMessage) }
     }
 
+    // Elimina la tarjeta y, si era la predeterminada, selecciona otra disponible.
     fun remove(id: String, callback: (Boolean, String?) -> Unit = { _, _ -> }) {
         val uid = currentUid() ?: run { callback(false, "Sesión no iniciada"); return }
         val batch = db.batch()
@@ -152,6 +159,7 @@ fun DemoPaymentMethods(
     val muted = Color(0xFF766D80)
     val border = Color(0xFFD8C8E9)
 
+    // Estados temporales del formulario de registro y edición.
     var addDialog by remember(uid) { mutableStateOf(false) }
     var editingId by remember(uid) { mutableStateOf<String?>(null) }
     var brand by remember(uid) { mutableStateOf("Visa") }
@@ -164,6 +172,7 @@ fun DemoPaymentMethods(
     var saveError by remember(uid) { mutableStateOf<String?>(null) }
     var actionError by remember(uid) { mutableStateOf<String?>(null) }
 
+    // Restablece los campos del formulario, incluidos los datos no persistidos.
     fun resetForm() {
         brand = "Visa"
         holder = ""
@@ -180,6 +189,7 @@ fun DemoPaymentMethods(
         editingId = null
     }
 
+    // Precarga únicamente los datos disponibles de una tarjeta existente.
     fun startEdit(card: DemoPaymentCard) {
         editingId = card.id
         brand = card.brand
@@ -203,6 +213,7 @@ fun DemoPaymentMethods(
         val now = Calendar.getInstance()
         val currentYY = now.get(Calendar.YEAR) % 100
         val currentMonth = now.get(Calendar.MONTH) + 1
+        // Comprueba que el mes sea válido y que la fecha no haya vencido.
         val validExpiry = expiryDigits.length == 4 && month in 1..12 &&
                 (yy > currentYY || (yy == currentYY && month >= currentMonth))
         // Si se edita sin cambiar el número, no se vuelve a solicitar el CVV.
@@ -323,6 +334,7 @@ fun DemoPaymentMethods(
                     Button(
                         onClick = {
                             if (!savingCard) {
+                                // Construye el modelo persistible sin incluir el número completo ni el CVV.
                                 val card = DemoPaymentCard(
                                     id = editingCard?.id ?: UUID.randomUUID().toString(),
                                     brand = brand,
@@ -333,6 +345,7 @@ fun DemoPaymentMethods(
                                 )
                                 savingCard = true
                                 saveError = null
+                                // Cierra el formulario al guardar correctamente o muestra el error recibido.
                                 val finished: (Boolean, String?) -> Unit = { ok, message ->
                                     savingCard = false
                                     if (ok) closeForm()
@@ -373,6 +386,7 @@ fun DemoPaymentMethods(
             Text("No hay tarjetas agregadas.", color = muted, fontSize = 13.sp)
         } else {
             DemoPaymentStore.cards.forEach { card ->
+                // En el perfil se selecciona la predeterminada; en checkout, la tarjeta de esta compra.
                 val selected = if (manage) DemoPaymentStore.defaultId == card.id
                 else checkoutSelectedId == card.id
                 Surface(
@@ -431,6 +445,7 @@ fun DemoPaymentMethods(
                     }
                 }
             }
+            // Permite agregar tarjetas hasta alcanzar el límite de diez.
         }
         OutlinedButton(
             onClick = {

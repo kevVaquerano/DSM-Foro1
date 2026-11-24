@@ -82,7 +82,7 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Antes de preparar un perfil de cliente, comprobar si la cuenta pertenece al administrador.
-    // Nunca crear ni cambiar roles desde la aplicacion.
+    // Nunca crear ni cambiar roles desde la aplicación.
     fun continuarSegunRol(user: com.google.firebase.auth.FirebaseUser, provider: String) {
         firestore.collection("users").document(user.uid).get()
             .addOnSuccessListener { profile ->
@@ -92,7 +92,7 @@ fun LoginScreen(
                     isLoading = false
                     onNavigateToAdmin()
                 } else if (profile.exists() && profile.getString("role") == "admin") {
-                    // Perfil administrativo mal configurado: no dejarlo entrar al modulo cliente.
+                    // Perfil administrativo mal configurado: impedir el acceso al módulo cliente.
                     isLoading = false
                     auth.signOut()
                     errorMessage = "El perfil de administrador no coincide con la cuenta. Revisá el UID en Firestore."
@@ -101,6 +101,7 @@ fun LoginScreen(
                     auth.signOut()
                     errorMessage = "Esta cuenta no tiene un rol autorizado."
                 } else {
+                    // Conserva el perfil existente y decide si debe completarse antes de entrar.
                     UserProfileRepository.prepareProfile(user, provider) { complete, error ->
                         isLoading = false
                         if (error != null) errorMessage = "No se pudo preparar tu perfil: $error"
@@ -154,6 +155,7 @@ fun LoginScreen(
     ) { result ->
 
         if (result.resultCode == Activity.RESULT_OK) {
+            // Extrae la cuenta seleccionada del resultado de Google.
             val task = GoogleSignIn.getSignedInAccountFromIntent(
                 result.data
             )
@@ -209,7 +211,7 @@ fun LoginScreen(
         } else {
             isLoading = false
 
-            // Intentar obtener el error real de Google
+            // Recupera el código de error de Google para facilitar el diagnóstico.
             val googleTask = GoogleSignIn
                 .getSignedInAccountFromIntent(result.data)
 
@@ -354,7 +356,7 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Espacio sobre el nombre de la aplicación.
+            // Encabezado del formulario.
             Spacer(modifier = Modifier.height(15.dp))
 
             // Nombre principal de la aplicación.
@@ -414,6 +416,7 @@ fun LoginScreen(
                             onPress = {
                                 presionandoGatito = true
                                 try {
+                                    // Espera a que termine la pulsación para detener el sonido.
                                     tryAwaitRelease()
                                 } finally {
                                     presionandoGatito = false
@@ -556,6 +559,7 @@ fun LoginScreen(
                             isLoading = true
                             errorMessage = null
 
+                            // Firebase autentica las credenciales; el rol se verifica después.
                             auth.signInWithEmailAndPassword(
                                 email.trim(),
                                 password
@@ -635,6 +639,7 @@ fun LoginScreen(
                         isLoading = true
                         errorMessage = null
 
+                        // Cierra la sesión previa de Google para permitir elegir otra cuenta.
                         googleSignInClient.signOut()
                             .addOnCompleteListener {
                                 googleLauncher.launch(

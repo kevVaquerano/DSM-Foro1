@@ -62,6 +62,7 @@ fun RegisterScreen(
     onNavigateToLogin: () -> Unit,
     onCompleteProfileNeeded: () -> Unit
 ) {
+    // Contexto y servicios de autenticación, base de datos y tareas asíncronas.
     val context = LocalContext.current
     val auth = remember { Firebase.auth }
     val firestore = remember { Firebase.firestore }
@@ -70,11 +71,13 @@ fun RegisterScreen(
     var loadingPhoto by remember { mutableStateOf(false) }
 
 
+    // Paleta de colores de la pantalla de registro.
     val morado = Color(0xFF7952B5)
     val moradoOscuro = Color(0xFF473071)
     val fondoLila = Color(0xFFD8C9F0)
     val fondoCampo = Color(0xFFE7E4EB)
 
+    // Datos del formulario y estados de visibilidad, carga y error.
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -106,6 +109,7 @@ fun RegisterScreen(
         }
     }
 
+    // Selector de fecha de nacimiento con límite anterior al día actual.
     val birthPicker = remember(context) {
         DatePickerDialog(context, { _, year, month, day ->
             birthDate = String.format(
@@ -130,6 +134,7 @@ fun RegisterScreen(
         }
     }
 
+    // Configuración de OAuth para obtener el token de Google.
     val webClientId = remember(context) {
         val id = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
         if (id != 0) context.getString(id) else ""
@@ -141,6 +146,7 @@ fun RegisterScreen(
             .build()
     }
     val googleClient = remember(googleOptions) { GoogleSignIn.getClient(context, googleOptions) }
+    // Recibe el resultado de Google y autentica la cuenta en Firebase.
     val googleLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -238,6 +244,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(12.dp))
     }
 
+    // Formulario desplazable que se adapta al teclado y a las barras del sistema.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -330,6 +337,7 @@ fun RegisterScreen(
                 }
             }
             Spacer(Modifier.height(6.dp))
+            // Campos personales y selección de fecha de nacimiento.
             Text("Foto de perfil (opcional)", fontSize = 13.sp, color = moradoOscuro)
             Spacer(Modifier.height(12.dp))
 
@@ -410,6 +418,7 @@ fun RegisterScreen(
             }
 
             Button(
+                // Valida los datos antes de crear una cuenta con correo y contraseña.
                 onClick = {
                     when {
                         firstName.isBlank() || lastName.isBlank() || email.isBlank() || birthDate.isBlank() ||
@@ -438,6 +447,7 @@ fun RegisterScreen(
                                         isLoading = false
                                         errorMessage = "No se recibió el UID de la cuenta creada."
                                     } else {
+                                        // Inicializa el perfil de cliente con membresía Bronce y cero puntos.
                                         val data = mapOf(
                                             "uid" to uid,
                                             "firstName" to firstName.trim(),
@@ -470,6 +480,7 @@ fun RegisterScreen(
                                                     onRegisterSuccess()
                                                 }
                                             }
+                                            // Si falla el perfil, la cuenta de autenticación ya existe y puede recuperarse al iniciar sesión.
                                             .addOnFailureListener { e ->
                                                 isLoading = false
                                                 errorMessage = "Cuenta creada, pero falló el perfil: ${e.localizedMessage}. Iniciá sesión para reintentar."
@@ -501,6 +512,7 @@ fun RegisterScreen(
             Spacer(Modifier.height(25.dp))
 
             OutlinedButton(
+                // Cierra la sesión previa de Google antes de abrir el selector de cuenta.
                 onClick = {
                     if (webClientId.isBlank()) {
                         errorMessage = "No se encontró default_web_client_id. Revisá Firebase y Gradle."
@@ -528,6 +540,7 @@ fun RegisterScreen(
             }
             Spacer(Modifier.height(15.dp))
 
+            // Permite regresar al inicio de sesión si el usuario ya tiene cuenta.
             TextButton(onClick = onNavigateToLogin, enabled = !isLoading) {
                 Text("¿Ya tienes cuenta? Inicia sesión", color = moradoOscuro, fontSize = 16.sp)
             }

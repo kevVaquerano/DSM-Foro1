@@ -43,7 +43,7 @@ import kotlin.math.roundToInt
 
 /**
  * Registra un PEDIDO DE PRUEBA en Firestore al confirmar.
- * No cobra tarjetas, no acredita puntos y no descuenta inventario.
+ * No realiza cobros reales; el repositorio acredita puntos y actualiza inventario.
  * Conserva la firma que usa NavGraph.
  */
 @Composable
@@ -58,6 +58,7 @@ fun CheckoutScreen(
     val pale = Color(0xFFFCFAFF)
     val line = Color(0xFFB99DD6) // Separadores lilas, finos pero visibles
     val muted = Color(0xFF61566C)
+    // Cuenta activa y membresía consultada para aplicar el descuento correspondiente.
     val userId = Firebase.auth.currentUser?.uid
     val membership = rememberMembershipStatus()
     // Selección exclusiva de esta visita al Checkout: nunca altera la predeterminada en Firebase.
@@ -92,6 +93,7 @@ fun CheckoutScreen(
     var savingAddress by remember { mutableStateOf(false) }
     var addressSaveError by remember { mutableStateOf<String?>(null) }
 
+    // Recupera los datos del perfil sin sobrescribir los cambios hechos en esta pantalla.
     LaunchedEffect(userId) {
         if (userId == null) {
             loadingProfile = false
@@ -132,6 +134,7 @@ fun CheckoutScreen(
         "$day · $hour12:$minute $period"
     }
 
+    // Calcula el resumen de compra; el repositorio vuelve a validar los importes al registrar.
     val subtotal = cartItems.sumOf { it.book.price * it.quantity }
     val discount = MembershipPricing.discount(subtotal, membership.level)
     val discountedSubtotal = subtotal - discount
@@ -151,6 +154,7 @@ fun CheckoutScreen(
         )
     }
 
+    // Comprueba los requisitos antes de permitir el registro del pedido.
     val nameValid = isValidCheckoutRecipient(recipientName)
     val selectedCardValid = checkoutSelectedCardId != null &&
             DemoPaymentStore.cards.any { it.id == checkoutSelectedCardId }
@@ -169,6 +173,7 @@ fun CheckoutScreen(
     }
     fun money(value: Double): String = String.format(Locale.US, "$%.2f", value)
 
+    // El nombre editado se utiliza como destinatario de esta compra.
     if (editRecipient) {
         AlertDialog(
             onDismissRequest = { editRecipient = false },
@@ -195,6 +200,7 @@ fun CheckoutScreen(
             dismissButton = { TextButton(onClick = { editRecipient = false }) { Text("Cancelar") } }
         )
     }
+    // La dirección editada también se guarda en el perfil del usuario.
     if (editAddress) {
         AlertDialog(
             onDismissRequest = { if (!savingAddress) editAddress = false },
@@ -599,6 +605,7 @@ fun CheckoutScreen(
                             } else {
                                 val chosenCard = DemoPaymentStore.cards.firstOrNull { it.id == checkoutSelectedCardId }
                                 if (chosenCard != null) {
+                                    // Construye el recibo con los datos seleccionados para este pedido.
                                     val receipt = OrderReceiptPreview(
                                         recipient = recipientName.trim(),
                                         date = previewDate,
@@ -618,6 +625,7 @@ fun CheckoutScreen(
                                         shipping = shipping,
                                         total = total
                                     )
+                                    // Evita registros simultáneos mientras se procesa el pedido.
                                     if (!registeringOrder) {
                                         registeringOrder = true
                                         orderError = null
@@ -694,6 +702,7 @@ private fun CheckoutAmountRow(
     }
 }
 
+// Valida el formato del nombre del destinatario.
 private fun isValidCheckoutRecipient(value: String): Boolean {
     val trimmed = value.trim()
     return trimmed.length in 2..90 &&

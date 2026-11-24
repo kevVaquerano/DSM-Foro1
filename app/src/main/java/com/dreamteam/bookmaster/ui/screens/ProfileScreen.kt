@@ -54,6 +54,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
     val user = Firebase.auth.currentUser
     val scope = rememberCoroutineScope()
 
+    // Estados del formulario y copias de los datos guardados para cancelar la edición.
     var firstName by remember(user?.uid) { mutableStateOf("") }
     var lastName by remember(user?.uid) { mutableStateOf("") }
     var birthDate by remember(user?.uid) { mutableStateOf("") }
@@ -67,6 +68,8 @@ fun ProfileScreen(onLogout: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var photo by remember(user?.uid) { mutableStateOf<Bitmap?>(null) }
     var photoLoading by remember { mutableStateOf(false) }
+    // Controla la visibilidad del diálogo de confirmación de cierre de sesión.
+    var confirmLogout by remember { mutableStateOf(false) }
 
     // Estado verificado de Firestore, compartido con carrito y Checkout.
     val membership = rememberMembershipStatus()
@@ -74,6 +77,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
     val nivel = membership.level
     val minimoPlata = 200L
     val minimoOro = 500L
+    // Calcula el avance dentro del nivel actual, limitado al rango de la barra.
     val progreso = when (nivel) {
         "BRONCE" -> (puntos.toFloat() / minimoPlata).coerceIn(0f, 1f)
         "PLATA" -> ((puntos - minimoPlata).toFloat() / (minimoOro - minimoPlata)).coerceIn(0f, 1f)
@@ -91,6 +95,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
         else -> 0L
     }
 
+    // Recupera la fotografía local y los datos personales al cambiar de cuenta.
     LaunchedEffect(user?.uid) {
         if (user == null) {
             error = "No hay una sesión iniciada."
@@ -115,6 +120,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
             }
     }
 
+    // Selecciona y guarda la fotografía en el almacenamiento privado del dispositivo.
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null && user != null) {
             photoLoading = true
@@ -139,6 +145,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
         }
     }
 
+    // Estilo compartido por las tarjetas del perfil.
     val cardColors = CardDefaults.cardColors(containerColor = Color.White)
     val cardBorder = BorderStroke(1.dp, navy.copy(alpha = 0.65f))
     Column(
@@ -196,6 +203,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Text(user?.email.orEmpty(), fontSize = 13.sp, color = Color(0xFF6C617B), textAlign = TextAlign.Center)
                 Spacer(Modifier.height(16.dp))
+                // Al cancelar la edición, restaura los últimos datos guardados.
                 OutlinedButton(onClick = {
                     if (editing) {
                         firstName = savedFirstName
@@ -281,6 +289,7 @@ fun ProfileScreen(onLogout: () -> Unit) {
                             return@Button
                         }
                         saving = true; error = null
+                        // Actualiza únicamente los nombres y la dirección mediante el repositorio.
                         UserProfileRepository.updateNamesAndAddress(currentUser, firstName, lastName, address) { ok, message ->
                             saving = false
                             if (ok) {
@@ -419,11 +428,12 @@ fun ProfileScreen(onLogout: () -> Unit) {
             }
         }
 
+        // Muestra los errores de carga, edición o gestión de la fotografía.
         if (error != null) Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
 
-        Spacer(modifier = Modifier.height(34.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Button(
-            onClick = onLogout,
+            onClick = { confirmLogout = true },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB44141))
@@ -432,7 +442,62 @@ fun ProfileScreen(onLogout: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("Cerrar sesión", color = Color.White, fontWeight = FontWeight.SemiBold)
         }
-        Spacer(modifier = Modifier.height(34.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // Solicita confirmación antes de cerrar la sesión; cancelar mantiene la cuenta activa.
+    if (confirmLogout) {
+        AlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color.White,
+            title = {
+                Text(
+                    "¿Cerrar sesión?", color = navy,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    "¿Seguro que querés cerrar sesión y volver al inicio de sesión?",
+                    color = navy,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = { confirmLogout = false },
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, purple)
+                    ) {
+                        Text("Cancelar", color = navy)
+                    }
+
+                    Spacer(Modifier.width(24.dp))
+
+                    Button(
+                        onClick = {
+                            confirmLogout = false
+                            // Delega el cierre de sesión y la navegación al callback recibido.
+                            onLogout()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB44141)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cerrar sesión", color = Color.White)
+                    }
+                }
+            },
+            dismissButton = {}
+        )
     }
 }
 
