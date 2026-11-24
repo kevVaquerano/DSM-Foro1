@@ -26,6 +26,14 @@ desarrollada de forma nativa para Android.
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Equipo](#-equipo)
 ---
+
+---
+ 
+## 📖 Mockups de Figma:
+ 
+- [Figma]( https://www.figma.com/design/duYSlwo0M7w8PNx7GE5Jir/Etapa-1-DSM-DreamTeam?node-id=0-1&t=coqkGPRpG2d0rKW9-1)
+- 
+---
  
 ## 🎯 Sobre el proyecto
  
