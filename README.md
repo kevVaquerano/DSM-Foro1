@@ -1,79 +1,162 @@
-#  Estudiantes: 
-Kevin Arturo Vaquerano Morales  VM223215
-Hayzel Evelyn González Gutiérrez GG240801
-
-
-
-# 📚 BookMaster 
-
-BookMaster es una aplicación móvil de comercio electrónico (e-commerce) para la venta de libros, desarrollada nativamente para Android utilizando **Kotlin**, **Jetpack Compose** y **Firebase**. 
-
-La aplicación permite a los usuarios explorar un catálogo de libros, agregar productos a su carrito, realizar compras y mantener un historial de sus pedidos guardado de forma segura en la nube.
-
-## ✨ Características Principales
-
-* **Autenticación de Usuarios:** Sistema de inicio de sesión y registro de cuentas (Integrado con Firebase Auth).
-* **Catálogo de Libros:** Visualización de libros disponibles con detalles como título, autor, categoría, precio, calificación y stock disponible.
-* **Carrito de Compras Dinámico:** 
-  * Agregar y eliminar libros.
-  * Modificar cantidades en tiempo real.
-  * Validación de inventario (no permite agregar más libros del stock disponible).
-* **Procesamiento de Compras (Checkout):** Descuento automático del stock local tras una compra exitosa y almacenamiento de la orden.
-* **Historial de Compras en la Nube:** Sincronización en tiempo real con Firestore para mostrar los pedidos anteriores del usuario autenticado.
-
-## 🛠️ Tecnologías y Arquitectura
-
-* **Lenguaje:** [Kotlin](https://kotlinlang.org/)
-* **UI Framework:** [Jetpack Compose](https://developer.android.com/jetpack/compose) (Material Design 3)
-* **Navegación:** Navigation Compose (`NavHost`, `NavController`)
-* **Base de Datos:** [Firebase Cloud Firestore](https://firebase.google.com/products/firestore)
-* **Autenticación:** [Firebase Authentication](https://firebase.google.com/products/auth)
-* **Asincronía & Estado:** Coroutines, StateFlow y `remember/mutableStateOf`.
-
-
-
-## 🚀 Instalación y Configuración local
-
-Para ejecutar este proyecto en tu entorno local, sigue estos pasos:
-
-1. **Clonar el repositorio:**
-   ```bash
-   git clone [https://github.com/TU_USUARIO/BookMaster.git](https://github.com/TU_USUARIO/BookMaster.git)
-
-
-
-
-Abrir en Android Studio:
-Abre Android Studio, selecciona File > Open y busca la carpeta del proyecto clonado.
-
-Configurar Firebase:
-
-Ve a la Consola de Firebase y crea un nuevo proyecto.
-
-Registra una aplicación Android con el nombre del paquete: com.dreamteam.bookmaster.
-
-Descarga el archivo google-services.json y colócalo en la carpeta app/ de tu proyecto.
-
-Habilita Authentication (Email/Password) y Firestore Database en la consola de Firebase.
-
-
-
-
-Reglas de Seguridad (Firestore):
-Asegúrate de configurar las reglas básicas en tu base de datos para permitir la lectura y escritura del carrito y el historial:
-
- rules_version = '2';
- service cloud.firestore {
-   match /databases/{database}/documents {
-     match /users/{userId}/{document=**} {
-       allow read, write: if request.auth != null && request.auth.uid == userId;
-     }
-   }
- }
-
-
-Compilar y Ejecutar:
-Selecciona tu emulador o dispositivo físico y presiona el botón de Run en ANDROID STUDIO.
-
-Contribución
-Este es un proyecto académico/personal de Dream Team.
+<div align="center">
+# 📚 BookMaster
+ 
+### Tu librería, en la palma de tu mano
+ 
+Aplicación móvil de comercio electrónico para la venta de libros,<br>
+desarrollada de forma nativa para Android.
+ 
+![Kotlin](https://img.shields.io/badge/Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?style=for-the-badge&logo=jetpackcompose&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)
+![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
+![Material Design 3](https://img.shields.io/badge/Material%20Design%203-757575?style=for-the-badge&logo=materialdesign&logoColor=white)
+ 
+</div>
+---
+ 
+## 📖 Tabla de contenidos
+ 
+- [Sobre el proyecto](#-sobre-el-proyecto)
+- [Características principales](#-características-principales)
+- [Tecnologías y arquitectura](#️-tecnologías-y-arquitectura)
+- [Capturas de pantalla](#-capturas-de-pantalla)
+- [Instalación y configuración local](#-instalación-y-configuración-local)
+- [Reglas de seguridad de Firestore](#-reglas-de-seguridad-de-firestore)
+- [Estructura del repositorio](#-estructura-del-repositorio)
+- [Equipo](#-equipo)
+---
+ 
+## 🎯 Sobre el proyecto
+ 
+**BookMaster** permite a los usuarios explorar un catálogo de libros, agregar productos a su carrito, realizar compras y consultar un historial de pedidos guardado de forma segura en la nube.
+ 
+> 🎓 Proyecto académico desarrollado por **Dream Team**.
+ 
+---
+ 
+## ✨ Características principales
+ 
+| | Función | Descripción |
+|---|---|---|
+| 🔐 | **Autenticación de usuarios** | Inicio de sesión y registro de cuentas con Firebase Authentication. |
+| 📚 | **Catálogo de libros** | Muestra título, autor, categoría, precio, calificación y stock disponible de cada libro. |
+| 🛒 | **Carrito dinámico** | Agrega y elimina libros, y modifica cantidades en tiempo real. |
+| ✅ | **Validación de inventario** | No permite agregar más libros de los que hay en stock. |
+| 💳 | **Checkout** | Descuenta automáticamente el stock local tras una compra exitosa y almacena la orden. |
+| ☁️ | **Historial en la nube** | Sincroniza en tiempo real con Firestore y muestra los pedidos anteriores del usuario autenticado. |
+ 
+---
+ 
+## 🛠️ Tecnologías y arquitectura
+ 
+| Categoría | Tecnología |
+|---|---|
+| **Lenguaje** | [Kotlin](https://kotlinlang.org/) |
+| **Interfaz de usuario** | [Jetpack Compose](https://developer.android.com/jetpack/compose) con Material Design 3 |
+| **Navegación** | Navigation Compose (`NavHost`, `NavController`) |
+| **Base de datos** | [Firebase Cloud Firestore](https://firebase.google.com/products/firestore) |
+| **Autenticación** | [Firebase Authentication](https://firebase.google.com/products/auth) |
+| **Asincronía y estado** | Coroutines, `StateFlow` y `remember` / `mutableStateOf` |
+ 
+---
+ 
+## 📸 Capturas de pantalla
+ 
+<!-- Agregagaaaaaaaaaaaar -->
+ 
+<div align="center">
+| Inicio de sesión | Catálogo | Carrito | Historial |
+|:---:|:---:|:---:|:---:|
+| *próximamente* | *próximamente* | *próximamente* | *próximamente* |
+ 
+</div>
+---
+ 
+## 🚀 Instalación y configuración local
+ 
+### Requisitos previos
+ 
+- [Android Studio](https://developer.android.com/studio) instalado
+- Un emulador o un dispositivo Android físico
+- Una cuenta de Google para usar la consola de Firebase
+### Pasos
+ 
+**1. Clonar el repositorio**
+ 
+```bash
+git clone https://github.com/kevVaquerano/DSM-Foro1.git
+```
+ 
+**2. Abrir el proyecto en Android Studio**
+ 
+Selecciona **File > Open** y busca la carpeta del proyecto clonado.
+ 
+**3. Configurar Firebase**
+ 
+1. Entra a la [Consola de Firebase](https://console.firebase.google.com/) y crea un nuevo proyecto.
+2. Registra una aplicación Android con el nombre de paquete: `com.dreamteam.bookmaster`.
+3. Descarga el archivo `google-services.json` y colócalo dentro de la carpeta `app/`.
+4. Habilita **Authentication** (método Email/Password) y **Firestore Database** en la consola.
+> ⚠️ **Importante:** no subas tu propio `google-services.json` a un repositorio público.
+ 
+**4. Configurar las reglas de Firestore**
+ 
+Copia las reglas de la siguiente sección en la pestaña **Rules** de tu base de datos.
+ 
+**5. Compilar y ejecutar**
+ 
+Elige tu emulador o dispositivo y presiona el botón **Run** ▶️ en Android Studio.
+ 
+---
+ 
+## 🔒 Reglas de seguridad de Firestore
+ 
+Estas reglas básicas permiten que cada usuario autenticado lea y escriba únicamente su propio carrito e historial:
+ 
+```
+rules_version = '2';
+ 
+service cloud.firestore {
+  match /databases/{database}/documents {
+ 
+    // Cada usuario solo accede a sus propios datos
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+ 
+---
+ 
+## 📂 Estructura del repositorio
+ 
+```
+DSM-Foro1/
+├── app/                              # Código fuente de la aplicación Android
+├── gradle/                           # Configuración del wrapper de Gradle
+├── Documentación Jetpack Compose/    # Material de apoyo sobre Jetpack Compose
+├── build.gradle.kts                  # Configuración de compilación del proyecto
+├── settings.gradle.kts               # Módulos del proyecto
+├── gradle.properties                 # Propiedades de Gradle
+└── README.md                         # Este archivo
+```
+ 
+---
+ 
+## 👥 Equipo
+ 
+<div align="center">
+| Estudiante | Carnet |
+|---|:---:|
+| **Kevin Arturo Vaquerano Morales** | `VM223215` |
+| **Hayzel Evelyn González Gutiérrez** | `GG240801` |
+ 
+</div>
+---
+ 
+<div align="center">
+Hecho con ❤️ y ☕ por **Dream Team**
+ 
+</div>
