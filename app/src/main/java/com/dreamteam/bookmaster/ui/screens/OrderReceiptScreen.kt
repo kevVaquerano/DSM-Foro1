@@ -144,17 +144,17 @@ fun OrderReceiptScreen(
                     ReceiptInfoRow("Fecha del pedido:", receipt.date, dark)
                     HorizontalDivider(color = line)
                     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Método de pago:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Método de pago:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Icon(painterResource(R.drawable.ic_checkout_card), null, tint = purple, modifier = Modifier.size(22.dp))
                             Column {
-                                Text("${receipt.paymentBrand} ···· ${receipt.paymentLastFour}", color = dark, fontSize = 14.sp)
+                                Text("${receipt.paymentBrand} ···· ${receipt.paymentLastFour}", color = dark, fontSize = 16.sp)
                             }
                         }
                     }
                     HorizontalDivider(color = line)
                     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                        Text("Método de entrega:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Método de entrega:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Icon(
                                 painterResource(if (receipt.deliveryMode == "pickup") R.drawable.ic_checkout_store else R.drawable.ic_nav_home),
@@ -162,13 +162,13 @@ fun OrderReceiptScreen(
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Text(if (receipt.deliveryMode == "pickup") "Retiro en sucursal · Gratis" else "Entrega a domicilio · $8.50",
-                                    color = dark, fontSize = 14.sp)
+                                    color = dark, fontSize = 16.sp)
                                 if (receipt.deliveryMode == "pickup") {
-                                    Text("Fecha y hora estimada del retiro:", color = dark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(receipt.pickupEstimate, color = dark, fontSize = 14.sp)
+                                    Text("Fecha y hora estimada del retiro:", color = dark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(receipt.pickupEstimate, color = dark, fontSize = 13.sp)
                                 } else {
-                                    Text("Dirección de entrega:", color = dark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(receipt.deliveryAddress, color = dark, fontSize = 14.sp)
+                                    Text("Dirección de entrega:", color = dark, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(receipt.deliveryAddress, color = dark, fontSize = 13.sp)
                                 }
                             }
                         }
@@ -245,13 +245,16 @@ fun OrderReceiptScreen(
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        ReceiptInfoRow("Subtotal:", money(receipt.subtotal), dark)
-                        ReceiptInfoRow("Descuento:", "−${money(receipt.discount)}", dark, Color(0xFF2E7D32))
-                        ReceiptInfoRow("Subtotal con descuento:", money(receipt.subtotal - receipt.discount), dark)
-                        ReceiptInfoRow("Costo de entrega:", money(receipt.shipping), dark)
+                        ReceiptAmountRow("Subtotal:", money(receipt.subtotal), dark)
+                        ReceiptAmountRow(
+                            "Descuento (${receipt.membershipLevel.lowercase().replaceFirstChar { it.titlecase() }} · $rate%)",
+                            "−${money(receipt.discount)}", dark, Color(0xFF2E7D32)
+                        )
+                        ReceiptAmountRow("Subtotal con descuento:", money(receipt.subtotal - receipt.discount), dark)
+                        ReceiptAmountRow("Costo de entrega:", money(receipt.shipping), dark)
                         if (pointsPreview > 0) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text("Puntos obtenidos:", Modifier.weight(1f), fontSize = 13.sp,
+                                Text("Puntos obtenidos:", Modifier.weight(1f), fontSize = 15.sp,
                                     color = dark, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.width(8.dp))
                                 Row(Modifier.weight(1.15f), horizontalArrangement = Arrangement.End,
@@ -264,22 +267,16 @@ fun OrderReceiptScreen(
                                             else -> Color(0xFF8794A3)
                                         }, modifier = Modifier.size(19.dp))
                                     Spacer(Modifier.width(5.dp))
-                                    Text("+$pointsPreview puntos", fontSize = 14.sp, color = dark)
+                                    Text("+$pointsPreview puntos", fontSize = 16.sp, color = dark)
                                 }
                             }
                         }
                         HorizontalDivider(color = line)
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("TOTAL:", color = dark, fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-                            Text(money(receipt.total), color = purple, fontWeight = FontWeight.Bold, fontSize = 21.sp)
-                        }
+                        ReceiptAmountRow("TOTAL:", money(receipt.total), dark, purple, emphasized = true)
                     }
                 }
             }
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                OutlinedButton(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                    Text("Ver mi pedido · Próximamente")
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(onClick = { savePdf.launch("BookMaster_${receipt.code}.pdf") },
                         modifier = Modifier.weight(1f).height(46.dp), shape = RoundedCornerShape(12.dp)) {
@@ -302,6 +299,37 @@ private fun ReceiptInfoRow(label: String, value: String, color: Color, valueColo
         Text(label, Modifier.weight(1f), fontSize = 13.sp, color = color, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.width(8.dp))
         Text(value, Modifier.weight(1.15f), fontSize = 14.sp, color = valueColor, textAlign = TextAlign.End)
+    }
+}
+
+/** Importes del recibo con los mismos tamaños que el resumen de Checkout. */
+@Composable
+private fun ReceiptAmountRow(
+    label: String,
+    value: String,
+    dark: Color,
+    valueColor: Color = dark,
+    emphasized: Boolean = false
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            color = dark,
+            fontSize = if (emphasized) 18.sp else 15.sp,
+            fontWeight = if (emphasized) FontWeight.ExtraBold else FontWeight.Normal,
+            maxLines = 2,
+            lineHeight = if (emphasized) 22.sp else 19.sp
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            value,
+            color = valueColor,
+            fontSize = if (emphasized) 23.sp else 16.sp,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.End,
+            maxLines = 1
+        )
     }
 }
 

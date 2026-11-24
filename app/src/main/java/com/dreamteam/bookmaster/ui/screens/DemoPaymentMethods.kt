@@ -266,10 +266,6 @@ fun DemoPaymentMethods(
                             focusedContainerColor = Color.White, unfocusedContainerColor = Color.White,
                             focusedBorderColor = purple)
                     )
-                    if (editingCard != null) {
-                        Text("Para cambiar el número, escribí uno ficticio de 16 dígitos y un CVV de prueba. Si no, dejá ambos vacíos.",
-                            fontSize = 11.sp, color = muted)
-                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Vencimiento", color = dark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -398,10 +394,10 @@ fun DemoPaymentMethods(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text("${card.brand} ···· ${card.lastFour}", color = dark,
-                                fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                            Text(card.holder, color = muted, fontSize = 11.sp, maxLines = 1)
+                                fontSize = if (manage) 14.sp else 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(card.holder, color = muted, fontSize = if (manage) 11.sp else 13.sp, maxLines = 1)
                             if (card.expiry.isNotBlank())
-                                Text("Vence ${card.expiry}", color = muted, fontSize = 11.sp)
+                                Text("Vence ${card.expiry}", color = muted, fontSize = if (manage) 11.sp else 13.sp)
                             if (manage && DemoPaymentStore.defaultId == card.id)
                                 Text("Predeterminada", fontSize = 11.sp, color = purple)
                         }
@@ -444,7 +440,7 @@ fun DemoPaymentMethods(
             },
             modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp),
             enabled = uid != null && !DemoPaymentStore.loading && DemoPaymentStore.cards.size < 10
-        ) { Text("+ Agregar tarjeta", color = purple) }
+        ) { Text("+ Agregar tarjeta", color = purple, fontSize = if (manage) 14.sp else 16.sp) }
 
     }
 }

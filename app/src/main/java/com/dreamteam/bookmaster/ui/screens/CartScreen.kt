@@ -33,6 +33,7 @@ import com.dreamteam.bookmaster.R
 import com.dreamteam.bookmaster.ui.theme.BookMasterDarkPurple
 import com.dreamteam.bookmaster.ui.theme.BookMasterPurple
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 /** Rediseño del carrito. El guardado y las cantidades permanecen a cargo de NavGraph. */
 @Composable
@@ -48,7 +49,7 @@ fun CartScreen(
     val context = LocalContext.current
     val dark = BookMasterDarkPurple
     val purple = BookMasterPurple
-    val line = Color(0xFFD7C8E7)
+    val line = Color(0xFFCAC4D0) // Borde gris suave de los campos del login
     val pale = Color(0xFFFCFAFF)
     var editing by remember { mutableStateOf(false) }
     var showClearConfirmation by remember { mutableStateOf(false) }
@@ -58,6 +59,11 @@ fun CartScreen(
     val discount = MembershipPricing.discount(subtotal, membership.level)
     val total = subtotal - discount
     val units = cartItems.sumOf { it.quantity }
+    val hasItems = cartItems.isNotEmpty()
+    val editEnabled = hasItems || editing
+    val clearEnabled = hasItems && !editing
+    val discountPercentage = if (subtotal > 0.0) (discount / subtotal * 100.0).roundToInt() else 0
+    val discountLevelName = membership.level?.lowercase()?.replaceFirstChar { it.titlecase() }
 
     SideEffect {
         (context as? Activity)?.window?.let { window ->
@@ -174,41 +180,45 @@ fun CartScreen(
             )
             OutlinedButton(
                 onClick = { editing = !editing },
-                enabled = cartItems.isNotEmpty() || editing,
+                enabled = editEnabled,
                 modifier = Modifier.height(42.dp),
                 shape = RoundedCornerShape(9.dp),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.7f)),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = if (editEnabled) 0.7f else 0.28f)),
                 contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = 0.38f)
+                )
             ) {
                 Icon(
                     painterResource(R.drawable.ic_checkout_edit),
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = Color.White.copy(alpha = if (editEnabled) 1f else 0.38f),
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(Modifier.width(4.dp))
-                Text(if (editing) "LISTO" else "EDITAR", color = Color.White,
+                Text(if (editing) "LISTO" else "EDITAR", color = Color.White.copy(alpha = if (editEnabled) 1f else 0.38f),
                     fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.width(7.dp))
             OutlinedButton(
                 onClick = { showClearConfirmation = true },
-                enabled = !editing && cartItems.isNotEmpty(),
+                enabled = clearEnabled,
                 modifier = Modifier.height(42.dp),
                 shape = RoundedCornerShape(9.dp),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = if (editing) 0.4f else 0.7f)),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = if (clearEnabled) 0.7f else 0.28f)),
                 contentPadding = PaddingValues(horizontal = 9.dp, vertical = 0.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color.White, disabledContentColor = Color.White.copy(alpha = 0.38f)
+                )
             ) {
                 Icon(
                     painterResource(R.drawable.ic_delete_profile),
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = if (editing) 0.4f else 1f),
+                    tint = Color.White.copy(alpha = if (clearEnabled) 1f else 0.38f),
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(Modifier.width(4.dp))
-                Text("VACIAR", color = Color.White.copy(alpha = if (editing) 0.4f else 1f),
+                Text("VACIAR", color = Color.White.copy(alpha = if (clearEnabled) 1f else 0.38f),
                     fontSize = 13.sp, fontWeight = FontWeight.Bold)
             }
         }
@@ -252,16 +262,16 @@ fun CartScreen(
                         when {
                             membership.loading -> "Consultando membresía…"
                             membership.error -> "No se pudo verificar membresía"
-                            else -> MembershipPricing.label(membership.level)
+                            else -> "Descuento (${discountLevelName ?: "Sin nivel"} · $discountPercentage%)"
                         },
                         "−${MembershipPricing.money(discount)}", dark, Color(0xFF2E7D32)
                     )
                     HorizontalDivider(color = line, thickness = 1.dp)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total sin envío:", color = dark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Total sin envío:", color = dark, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text(MembershipPricing.money(total), color = purple,
-                            fontSize = 21.sp, fontWeight = FontWeight.ExtraBold)
+                            fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
                     }
                     Button(
                         onClick = onCheckoutClick,
@@ -282,9 +292,11 @@ fun CartScreen(
 private fun CartSummaryLine(label: String, value: String, dark: Color, valueColor: Color = dark) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = dark, fontSize = 13.sp, modifier = Modifier.weight(1f))
-        Text(value, color = valueColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.End)
+        Text(label, color = dark, fontSize = 15.sp, lineHeight = 19.sp,
+            modifier = Modifier.weight(1f), maxLines = 2)
+        Spacer(Modifier.width(8.dp))
+        Text(value, color = valueColor, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End, maxLines = 1)
     }
 }
 
@@ -318,6 +330,7 @@ private fun RedesignedCartItem(
         context.resources.getIdentifier(item.book.id, "drawable", context.packageName)
     }
     val borderShape = RoundedCornerShape(18.dp)
+    val loginBorder = Color(0xFF473071)
     val coverWidth by animateDpAsState(if (editing) 64.dp else 79.dp, label = "PortadaCarrito")
 
     // Una sola base lila continua: al entrar en modo Editar aparece la zona de X,
@@ -327,14 +340,14 @@ private fun RedesignedCartItem(
             .animateContentSize()
             .clip(borderShape)
             .background(Color(0xFFDAB8F2))
-            .border(1.3.dp, dark, borderShape),
+            .border(1.3.dp, loginBorder, borderShape),
         contentAlignment = Alignment.CenterEnd
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(end = shifted),
             color = Color.White,
             shape = borderShape,
-            border = BorderStroke(1.3.dp, dark),
+            border = BorderStroke(1.3.dp, loginBorder),
             shadowElevation = 0.dp
         ) {
             Row(

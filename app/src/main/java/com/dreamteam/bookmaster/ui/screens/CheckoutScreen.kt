@@ -39,6 +39,7 @@ import java.util.Locale
 import java.util.Calendar
 import kotlin.random.Random
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * Registra un PEDIDO DE PRUEBA en Firestore al confirmar.
@@ -215,35 +216,45 @@ fun CheckoutScreen(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        val uid = Firebase.auth.currentUser?.uid
-                        val nueva = tempAddress.trim()
-                        if (uid == null) {
-                            addressSaveError = "Tenés que iniciar sesión para modificar la dirección."
-                        } else if (nueva.length in 10..300 && !savingAddress) {
-                            savingAddress = true
-                            addressSaveError = null
-                            Firebase.firestore.collection("users").document(uid)
-                                .update("homeAddress", nueva)
-                                .addOnSuccessListener {
-                                    if (Firebase.auth.currentUser?.uid == uid) {
-                                        address = nueva
-                                        addressEdited = true
-                                        editAddress = false
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = { editAddress = false },
+                        enabled = !savingAddress
+                    ) { Text("Cancelar", color = purple) }
+                    TextButton(
+                        onClick = {
+                            val uid = Firebase.auth.currentUser?.uid
+                            val nueva = tempAddress.trim()
+                            if (uid == null) {
+                                addressSaveError = "Tenés que iniciar sesión para modificar la dirección."
+                            } else if (nueva.length in 10..300 && !savingAddress) {
+                                savingAddress = true
+                                addressSaveError = null
+                                Firebase.firestore.collection("users").document(uid)
+                                    .update("homeAddress", nueva)
+                                    .addOnSuccessListener {
+                                        if (Firebase.auth.currentUser?.uid == uid) {
+                                            address = nueva
+                                            addressEdited = true
+                                            editAddress = false
+                                        }
+                                        savingAddress = false
                                     }
-                                    savingAddress = false
-                                }
-                                .addOnFailureListener {
-                                    savingAddress = false
-                                    addressSaveError = "No se pudo actualizar la dirección: ${it.localizedMessage}"
-                                }
-                        }
-                    },
-                    enabled = tempAddress.trim().length in 10..300 && !savingAddress
-                ) { Text("Guardar", color = purple) }
+                                    .addOnFailureListener {
+                                        savingAddress = false
+                                        addressSaveError = "No se pudo actualizar la dirección: ${it.localizedMessage}"
+                                    }
+                            }
+                        },
+                        enabled = tempAddress.trim().length in 10..300 && !savingAddress
+                    ) { Text("Guardar", color = purple) }
+                }
             },
-            dismissButton = { TextButton(onClick = { editAddress = false }, enabled = !savingAddress) { Text("Cancelar") } }
+            dismissButton = {}
         )
     }
 
@@ -317,7 +328,7 @@ fun CheckoutScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Método de pago:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("Método de pago:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             if (attemptedSubmit && !selectedCardValid && !DemoPaymentStore.loading) {
                                 Text(" *", color = requiredRed, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -325,7 +336,7 @@ fun CheckoutScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(painterResource(R.drawable.ic_checkout_card), contentDescription = null, tint = purple, modifier = Modifier.size(22.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Tarjeta de crédito o débito", color = dark, fontSize = 13.sp)
+                            Text("Tarjeta de crédito o débito", color = dark, fontSize = 15.sp)
                         }
                         DemoPaymentMethods(
                             manage = false,
@@ -341,7 +352,7 @@ fun CheckoutScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Método de entrega:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text("Método de entrega:", color = dark, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                             if (attemptedSubmit && !deliveryValid) {
                                 Text(" *", color = requiredRed, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             }
@@ -350,7 +361,7 @@ fun CheckoutScreen(
                             RadioButton(selected = deliveryMode == "pickup", onClick = { deliveryMode = "pickup" }, colors = RadioButtonDefaults.colors(selectedColor = purple))
                             Icon(painterResource(R.drawable.ic_checkout_store), contentDescription = null, tint = purple, modifier = Modifier.size(19.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Retiro en sucursal · Gratis", color = dark, fontSize = 13.sp)
+                            Text("Retiro en sucursal · Gratis", color = dark, fontSize = 15.sp)
                         }
                         // Retiro: fecha/hora justo debajo de su opción, con calendario al extremo derecho.
                         if (deliveryMode == "pickup") {
@@ -362,12 +373,10 @@ fun CheckoutScreen(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("Fecha y hora estimada del retiro:", color = dark, fontSize = 12.sp,
+                                    Text("Fecha y hora estimada del retiro:", color = dark, fontSize = 14.sp,
                                         fontWeight = FontWeight.SemiBold)
-                                    Text(pickupEstimate, color = dark, fontSize = 14.sp,
+                                    Text(pickupEstimate, color = dark, fontSize = 16.sp,
                                         fontWeight = FontWeight.Normal)
-                                    Text("Simulación: 5 min para cancelar + ${DemoDeliveryTimeline.extraMinutes(units, "pickup")} min adicionales para $units ejemplar(es).",
-                                        color = muted, fontSize = 11.sp, lineHeight = 16.sp)
                                 }
                                 Icon(
                                     painter = painterResource(R.drawable.ic_calendar_purple),
@@ -381,7 +390,7 @@ fun CheckoutScreen(
                             RadioButton(selected = deliveryMode == "delivery", onClick = { deliveryMode = "delivery" }, colors = RadioButtonDefaults.colors(selectedColor = purple))
                             Icon(painterResource(R.drawable.ic_nav_home), contentDescription = null, tint = purple, modifier = Modifier.size(19.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Entrega a domicilio · $8.50", color = dark, fontSize = 13.sp)
+                            Text("Entrega a domicilio · $8.50", color = dark, fontSize = 15.sp)
                         }
                         if (attemptedSubmit && !deliveryValid) {
                             Text("Elegí retiro en sucursal o entrega a domicilio.", color = requiredRed, fontSize = 11.sp)
@@ -390,10 +399,8 @@ fun CheckoutScreen(
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text("Fecha y hora estimada de entrega:", color = dark,
-                                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                                    Text(deliveryEstimate, color = dark, fontSize = 14.sp)
-                                    Text("Simulación: 5 min para cancelar + ${DemoDeliveryTimeline.extraMinutes(units, "delivery")} min adicionales para $units ejemplar(es).",
-                                        color = muted, fontSize = 11.sp, lineHeight = 16.sp)
+                                        fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(deliveryEstimate, color = dark, fontSize = 16.sp)
                                 }
                                 Icon(painterResource(R.drawable.ic_calendar_purple),
                                     contentDescription = "Fecha de entrega estimada", tint = purple,
@@ -402,7 +409,7 @@ fun CheckoutScreen(
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Dirección de entrega:", color = dark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                        Text("Dirección de entrega:", color = dark, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                                         if (attemptedSubmit && !addressValid && !loadingProfile) {
                                             Text(" *", color = requiredRed, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                                         }
@@ -414,7 +421,7 @@ fun CheckoutScreen(
                                             else -> address
                                         },
                                         color = if (address.isBlank()) Color(0xFF9B324A) else dark,
-                                        fontSize = 14.sp, fontWeight = FontWeight.Normal
+                                        fontSize = 16.sp, fontWeight = FontWeight.Normal
                                     )
                                 }
                                 IconButton(onClick = { tempAddress = address; editAddress = true }) {
@@ -548,7 +555,10 @@ fun CheckoutScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         CheckoutAmountRow("Subtotal:", money(subtotal), dark)
-                        CheckoutAmountRow("Descuento:", "−${money(discount)}", dark, Color(0xFF2E7D32))
+                        CheckoutAmountRow(
+                            "Descuento (${membership.level?.lowercase()?.replaceFirstChar { it.titlecase() } ?: "Sin nivel"} · ${if (subtotal > 0.0) (discount / subtotal * 100.0).roundToInt() else 0}%)",
+                            "−${money(discount)}", dark, Color(0xFF2E7D32)
+                        )
                         CheckoutAmountRow("Subtotal con descuento:", money(discountedSubtotal), dark)
                         CheckoutAmountRow("Costo de entrega:", money(shipping), dark)
                         HorizontalDivider(color = line, thickness = 1.dp)
@@ -570,7 +580,7 @@ fun CheckoutScreen(
                         shape = RoundedCornerShape(12.dp),
                         border = androidx.compose.foundation.BorderStroke(1.dp, purple)
                     ) {
-                        Text("CANCELAR", color = purple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Cancelar", color = purple, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
@@ -627,7 +637,7 @@ fun CheckoutScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = purple)
                     ) {
                         if (registeringOrder) CircularProgressIndicator(Modifier.size(19.dp), color = Color.White, strokeWidth = 2.dp)
-                        else Text("ACEPTAR", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        else Text("Aceptar", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                 }
             }
@@ -676,10 +686,11 @@ private fun CheckoutAmountRow(
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, modifier = Modifier.weight(1f), color = dark,
-            fontSize = if (emphasized) 16.sp else 13.sp,
-            fontWeight = if (emphasized) FontWeight.ExtraBold else FontWeight.Normal)
-        Text(value, color = valueColor, fontSize = if (emphasized) 21.sp else 14.sp,
-            fontWeight = FontWeight.Bold, textAlign = TextAlign.End)
+            fontSize = if (emphasized) 18.sp else 15.sp,
+            fontWeight = if (emphasized) FontWeight.ExtraBold else FontWeight.Normal,
+            maxLines = 2, lineHeight = 19.sp)
+        Text(value, color = valueColor, fontSize = if (emphasized) 23.sp else 16.sp,
+            fontWeight = FontWeight.Bold, textAlign = TextAlign.End, maxLines = 1)
     }
 }
 

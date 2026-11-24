@@ -1,6 +1,9 @@
 package com.dreamteam.bookmaster.ui.screens
 
 import android.app.Activity
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -50,6 +53,37 @@ private data class PurchaseOrder(
 )
 
 private data class PurchaseLine(val title: String, val quantity: Int)
+
+/**
+ * Copia privada del detalle anterior a la cancelación, por usuario y pedido.
+ * Las reglas actuales de Firestore obligan a vaciar items al cancelar.
+ * No interviene en inventario, puntos ni validaciones de la transacción.
+ */
+private fun saveCancelledLines(context: Context, uid: String, orderId: String, lines: List<PurchaseLine>) {
+    if (lines.isEmpty()) return
+    val array = JSONArray()
+    lines.forEach { line ->
+        array.put(JSONObject().put("title", line.title).put("quantity", line.quantity))
+    }
+    context.getSharedPreferences("bookmaster_cancelled_orders_$uid", Context.MODE_PRIVATE)
+        .edit().putString(orderId, array.toString()).apply()
+}
+
+private fun readCancelledLines(context: Context, uid: String, orderId: String): List<PurchaseLine> {
+    val raw = context.getSharedPreferences("bookmaster_cancelled_orders_$uid", Context.MODE_PRIVATE)
+        .getString(orderId, null) ?: return emptyList()
+    return try {
+        val array = JSONArray(raw)
+        (0 until array.length()).mapNotNull { index ->
+            val entry = array.optJSONObject(index) ?: return@mapNotNull null
+            val title = entry.optString("title").trim()
+            val quantity = entry.optInt("quantity", 0)
+            if (title.isNotBlank() && quantity > 0) PurchaseLine(title, quantity) else null
+        }
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
 
 /** Historial de pedidos: solo admite cancelación durante cinco minutos. */
 @Composable
@@ -118,7 +152,10 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
                             code = doc.getString("orderCode") ?: doc.id,
                             status = doc.getString("status")?.uppercase(Locale.ROOT) ?: "PENDIENTE",
                             createdAtMillis = doc.getTimestamp("createdAt")?.toDate()?.time,
-                            items = purchaseLines,
+                            items = if (
+                                doc.getString("status")?.uppercase(Locale.ROOT) in setOf("CANCELADO", "CANCELLED")
+                                && purchaseLines.isEmpty()
+                            ) readCancelledLines(context, uid, doc.id) else purchaseLines,
                             total = (doc.get("total") as? Number)?.toDouble() ?: 0.0,
                             deliveryMode = doc.getString("deliveryMode").orEmpty(),
                             pickupEstimate = doc.getString("pickupEstimate").orEmpty(),
@@ -137,28 +174,52 @@ fun PurchasesScreen(onBackClick: () -> Unit) {
     cancelTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { if (!cancelling) cancelTarget = null },
-            title = { Text("¿Cancelar pedido?", color = dark) },
+            title = {
+                Text("¿Cancelar pedido?", color = dark,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            },
             text = { Text("¿Estás seguro de que querés cancelar ${target.code}? Esta acción no se puede deshacer.") },
             confirmButton = {
-                Button(enabled = !cancelling, onClick = {
-                    cancelling = true
-                    BookMasterOrderRepository.cancelarPedido(target.id) { ok, err ->
-                        cancelling = false
-                        cancelTarget = null
-                        if (ok) {
-                            // Actualizar el estado inmediatamente tras la confirmación del servidor.
-                            orders = orders.map { order ->
-                                if (order.id == target.id) order.copy(status = "CANCELADO", items = emptyList(), total = 0.0, editUsed = true)
-                                else order
-                            }
-                        }
-                        actionError = if (ok) null else err ?: "No se pudo cancelar"
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(enabled = !cancelling, onClick = { cancelTarget = null }) {
+                        Text("Volver")
                     }
-                }) { Text(if (cancelling) "Cancelando…" else "CANCELAR PEDIDO") }
+                    Spacer(Modifier.width(10.dp))
+                    Button(contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp), enabled = !cancelling, onClick = {
+                        cancelling = true
+                        BookMasterOrderRepository.cancelarPedido(target.id) { ok, err ->
+                            cancelling = false
+                            cancelTarget = null
+                            if (ok) {
+                                // Firestore exige vaciar "items" al cancelar. Conservamos
+                                // el detalle original solo para mostrar el historial local.
+                                if (uid != null) {
+                                    saveCancelledLines(context, uid, target.id, target.items)
+                                }
+                                orders = orders.map { order ->
+                                    if (order.id == target.id) order.copy(status = "CANCELADO", total = 0.0, editUsed = true)
+                                    else order
+                                }
+                            }
+                            actionError = if (ok) null else err ?: "No se pudo cancelar"
+                        }
+                    }) {
+                        Text(
+                            text = if (cancelling) "Cancelando…" else "Cancelar pedido",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                }
             },
-            dismissButton = {
-                TextButton(enabled = !cancelling, onClick = { cancelTarget = null }) { Text("VOLVER") }
-            }
+            dismissButton = {}
         )
     }
 
@@ -326,15 +387,6 @@ private fun PurchaseOrderCard(
                 Text(summary.ifBlank { "Sin detalle de artículos" }, color = dark, fontSize = 13.sp,
                     lineHeight = 19.sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f))
-
-            }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (order.deliveryMode == "pickup") "Método de entrega: Retiro en sucursal"
-                    else "Método de entrega: Entrega a domicilio",
-                    color = Color.Gray, fontSize = 13.sp, lineHeight = 17.sp,
-                    modifier = Modifier.weight(1f)
-                )
                 if (cancellationWindowOpen) {
                     Spacer(Modifier.width(8.dp))
                     OutlinedButton(onClick = onCancel, contentPadding = PaddingValues(horizontal = 8.dp),
@@ -347,13 +399,21 @@ private fun PurchaseOrderCard(
                     }
                 }
             }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (order.deliveryMode == "pickup") "Método de entrega: Retiro en sucursal"
+                    else "Método de entrega: Entrega a domicilio",
+                    color = Color.Gray, fontSize = 13.sp, lineHeight = 17.sp,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             // Se deriva desde createdAt + cantidad ACTUAL: nunca queda una fecha antigua
             // si el usuario cambió el pedido durante los primeros 5 minutos.
             if (computedStatus !in setOf("CANCELADO", "CANCELLED")) order.createdAtMillis?.let { created ->
                 val estimated = if (order.editUsed && order.editedAtMillis != null)
                     order.editedAtMillis + DemoDeliveryTimeline.extraMinutes(units, order.deliveryMode) * 60_000L
                 else DemoDeliveryTimeline.arrivalMillis(created, units, order.deliveryMode)
-                val modeLabel = if (order.deliveryMode == "pickup") "Retiro simulado" else "Entrega simulada"
+                val modeLabel = if (order.deliveryMode == "pickup") "Retiro" else "Entrega"
                 Text("$modeLabel estimado: ${DemoDeliveryTimeline.formatDate(estimated)}",
                     color = dark, fontSize = 13.sp)
             }

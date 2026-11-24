@@ -88,6 +88,24 @@ fun NavGraph() {
     val cartItems = remember { mutableStateListOf<CartItem>() }
     var receiptPreview by remember { mutableStateOf<OrderReceiptPreview?>(null) }
 
+    // Aviso local de pedido nuevo, separado para cada cuenta.
+    val purchaseNoticeUid = Firebase.auth.currentUser?.uid
+    val purchaseNoticePrefs = remember(context) {
+        context.getSharedPreferences("bookmaster_purchase_notice", android.content.Context.MODE_PRIVATE)
+    }
+    var purchaseUnread by remember(purchaseNoticeUid) {
+        mutableStateOf(
+            purchaseNoticeUid != null && purchaseNoticePrefs.getBoolean("unread_$purchaseNoticeUid", false)
+        )
+    }
+    fun setPurchaseUnread(unread: Boolean) {
+        purchaseUnread = unread
+        purchaseNoticeUid?.let { uid ->
+            purchaseNoticePrefs.edit().putBoolean("unread_$uid", unread).apply()
+        }
+    }
+
+
     // Para este prototipo, la edad limita la visibilidad y el carrito en el cliente.
     // No sustituye validaciones seguras del servidor para compras reales.
 
@@ -290,13 +308,16 @@ fun NavGraph() {
             if (mostrarBarra) {
                 NavigationBar(containerColor = moradoOscuro) {
                     listOf(
-                        Screen.Purchases.route to "bell",
+                        Screen.Purchases.route to "bag",
                         Screen.Home.route to "home",
                         Screen.Profile.route to "person"
                     ).forEach { (ruta, dibujo) ->
                         NavigationBarItem(
                             selected = rutaActual == ruta,
                             onClick = {
+                                if (ruta == Screen.Purchases.route) {
+                                    setPurchaseUnread(false)
+                                }
                                 if (rutaActual != ruta) {
                                     navController.navigate(ruta) {
                                         popUpTo(Screen.Home.route) { saveState = true }
@@ -306,7 +327,19 @@ fun NavGraph() {
                                 }
                             },
                             icon = {
-                                ClienteNavigationIcon(tipo = dibujo, color = Color.White)
+                                Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                                    ClienteNavigationIcon(tipo = dibujo, color = Color.White)
+                                    if (dibujo == "bag" && purchaseUnread) {
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.TopEnd)
+                                                .offset(x = (-1).dp, y = 1.dp)
+                                                .size(10.dp)
+                                                .background(Color(0xFFFF5252), CircleShape)
+                                                .border(1.5.dp, moradoOscuro, CircleShape)
+                                        )
+                                    }
+                                }
                             },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Color.White,
@@ -555,14 +588,16 @@ fun NavGraph() {
                             receipt = preview,
                             onBackClick = { navController.popBackStack() },
                             onHomeClick = {
-                                // Navegar antes de limpiar el recibo evita que el efecto de
-                                // ReceiptPreview intente regresar mientras aún estamos aquí.
+                                // Pedido confirmado: indicar que Mis pedidos todavía no se ha revisado.
+                                setPurchaseUnread(true)
+                                // Reabrir Inicio como destino único tras la compra.
+                                // El recibo se conserva durante la transición para evitar
+                                // que el efecto de la pantalla del recibo navegue otra vez.
                                 navController.navigate(Screen.Home.route) {
-                                    popUpTo(Screen.Home.route) { inclusive = false }
+                                    popUpTo(Screen.Home.route) { inclusive = true }
                                     launchSingleTop = true
                                 }
-                                receiptPreview = null
-                                // Si el catálogo se perdió en memoria, volver a recuperarlo.
+                                // Si el catálogo falta, reconstruirlo sin tocar la navegación.
                                 if (booksList.isEmpty() && !cargandoCatalogo) {
                                     cargarCatalogoDeUsuario()
                                 }
@@ -814,6 +849,7 @@ private fun ClienteNavigationIcon(
     color: Color
 ) {
     val icono = when (tipo) {
+        "bag" -> R.drawable.ic_nav_shopping_bag
         "bell" -> R.drawable.ic_nav_notifications
         "home" -> R.drawable.ic_nav_home
         "person" -> R.drawable.ic_person_profile
@@ -824,6 +860,7 @@ private fun ClienteNavigationIcon(
     Icon(
         painter = painterResource(id = icono),
         contentDescription = when (tipo) {
+            "bag" -> "Mis pedidos"
             "bell" -> "Notificaciones"
             "home" -> "Inicio"
             "person" -> "Perfil"
