@@ -1,6 +1,8 @@
 package com.dreamteam.bookmaster.ui.screens
 
+import android.util.Log
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -43,6 +45,10 @@ object BookMasterOrderRepository {
             // Primero todas las lecturas, después la escritura.
             val userDoc = tx.get(userRef)
             if (!userDoc.exists()) error("No se encontró el perfil")
+
+            // Compras sin tiempo de espera entre pedidos.
+            // Firestore valida cada pedido y sus cambios de inventario.
+
             val cardDoc = tx.get(cardRef)
             if (!cardDoc.exists()) error("La tarjeta seleccionada ya no está disponible")
             val bookDocs = itemRefs.map { tx.get(it) }
@@ -106,9 +112,16 @@ object BookMasterOrderRepository {
             if (brand !in listOf("Visa", "Mastercard") || !lastFour.matches(Regex("[0-9]{4}"))) {
                 error("Método de pago inválido")
             }
+            // Estimación calculada desde el momento de confirmar.
+            // El plazo de cancelación se calcula desde createdAt del servidor.
+            val estimateDate = Date(DemoDeliveryTimeline.arrivalMillis(
+                System.currentTimeMillis(), lines.sumOf { it.quantity }, draft.deliveryMode
+            ))
+            val estimateLabel = DemoDeliveryTimeline.formatDate(estimateDate.time)
+
             val snapshot = draft.copy(
                 code = code, date = "", paymentBrand = brand, paymentLastFour = lastFour,
-                membershipLevel = level, items = lines, subtotal = subtotalBD.toDouble(),
+                membershipLevel = level, pickupEstimate = estimateLabel, items = lines, subtotal = subtotalBD.toDouble(),
                 discount = discountBD.toDouble(), shipping = shippingBD.toDouble(),
                 total = finalBD.toDouble(), pointsPending = pointsEarned.toInt(), status = "PENDIENTE"
             )
@@ -125,12 +138,14 @@ object BookMasterOrderRepository {
                 "totalCents" to totalCents,
                 "userId" to uid, "orderCode" to code,
                 "createdAt" to FieldValue.serverTimestamp(),
-                "status" to "PENDIENTE", "paymentStatus" to "SIMULADO",
+                "status" to "PENDIENTE", "editUsed" to false, "paymentStatus" to "SIMULADO",
                 "recipient" to snapshot.recipient,
                 "paymentBrand" to brand, "paymentLastFour" to lastFour,
                 "deliveryMode" to snapshot.deliveryMode,
                 "deliveryAddress" to snapshot.deliveryAddress,
-                "pickupEstimate" to snapshot.pickupEstimate,
+                "pickupEstimate" to if (snapshot.deliveryMode == "pickup") snapshot.pickupEstimate else "",
+                "deliveryEstimate" to if (snapshot.deliveryMode == "delivery") snapshot.pickupEstimate else "",
+                "estimatedArrivalAt" to Timestamp(estimateDate),
                 "membershipLevel" to level,
                 "items" to lines.map { mapOf("bookId" to it.bookId, "title" to it.title, "quantity" to it.quantity, "unitPrice" to it.unitPrice) },
                 "subtotal" to snapshot.subtotal, "discount" to snapshot.discount,
@@ -173,6 +188,115 @@ object BookMasterOrderRepository {
             }
         }.addOnFailureListener { error ->
             callback(null, error.localizedMessage ?: "No se pudo registrar el pedido")
+        }
+    }
+
+
+    /**
+     * Cancela un pedido pendiente durante sus primeros cinco minutos.
+     * En una sola transacción devuelve las existencias y revierte los puntos
+     * acreditados. El pedido sigue registrado como CANCELADO.
+     */
+    fun cancelarPedido(orderId: String, callback: (Boolean, String?) -> Unit) {
+        val uid = Firebase.auth.currentUser?.uid
+        if (uid == null) { callback(false, "Iniciá sesión nuevamente"); return }
+        if (orderId.isBlank()) { callback(false, "Pedido inválido"); return }
+
+        val db = Firebase.firestore
+        val userRef = db.collection("users").document(uid)
+        val orderRef = userRef.collection("orders").document(orderId)
+        // Lectura inicial para conocer los libros; se vuelve a validar todo en la transacción.
+        orderRef.get().addOnSuccessListener { initial ->
+            if (!initial.exists() || initial.getString("userId") != uid || Firebase.auth.currentUser?.uid != uid) {
+                callback(false, "Pedido no disponible")
+                return@addOnSuccessListener
+            }
+            val originalQuantities = (initial.get("bookQuantities") as? Map<*, *>)
+                ?.mapNotNull { (id, value) ->
+                    val bookId = id as? String ?: return@mapNotNull null
+                    val qty = (value as? Number)?.toLong() ?: return@mapNotNull null
+                    bookId to qty
+                }?.toMap().orEmpty()
+            if (originalQuantities.isEmpty() || originalQuantities.size > 4 || originalQuantities.values.any { it !in 1L..100L }) {
+                callback(false, "El detalle original del pedido no es válido")
+                return@addOnSuccessListener
+            }
+            val bookRefs = originalQuantities.keys.sorted().map { db.collection("books").document(it) }
+            db.runTransaction { tx ->
+                // Todas las lecturas deben realizarse antes de escribir.
+                val user = tx.get(userRef)
+                val order = tx.get(orderRef)
+                val books = bookRefs.map { tx.get(it) }
+                if (!user.exists() || !order.exists()) error("Pedido no disponible")
+                if (order.getString("userId") != uid || order.getString("orderId") != orderId)
+                    error("Este pedido no pertenece a tu cuenta")
+                if (order.getString("status") != "PENDIENTE" || order.getBoolean("editUsed") == true)
+                    error("Este pedido ya no se puede cancelar")
+                val createdAt = order.getTimestamp("createdAt")?.toDate()?.time
+                    ?: error("Fecha de compra no disponible")
+                val now = System.currentTimeMillis()
+                if (now < createdAt || now >= createdAt + 300_000L)
+                    error("Finalizaron los cinco minutos para cancelar")
+                if (user.getString("lastDemoOrderId") != orderId)
+                    error("Solo se puede cancelar la compra más reciente")
+                val currentQuantities = (order.get("bookQuantities") as? Map<*, *>)
+                    ?.mapNotNull { (id, value) ->
+                        val bookId = id as? String ?: return@mapNotNull null
+                        val qty = (value as? Number)?.toLong() ?: return@mapNotNull null
+                        bookId to qty
+                    }?.toMap().orEmpty()
+                if (currentQuantities != originalQuantities)
+                    error("El pedido cambió. Volvé a abrir Mis pedidos")
+                val originalItems = order.get("items") as? List<*>
+                    ?: error("Falta el detalle de libros")
+                val originalIds = originalItems.map { (it as? Map<*, *>)?.get("bookId") as? String }
+                if (originalItems.size != originalQuantities.size || originalIds.toSet() != originalQuantities.keys)
+                    error("El pedido tiene un detalle inconsistente")
+
+                val oldPoints = order.getLong("pointsEarned") ?: error("Faltan los puntos del pedido")
+                val pointsNow = user.getLong("loyaltyPoints") ?: error("Puntos no disponibles")
+                if (oldPoints < 0L || pointsNow < oldPoints) error("No se pueden revertir los puntos")
+                val newPoints = pointsNow - oldPoints
+                val newLevel = when {
+                    newPoints >= 500L -> "ORO"
+                    newPoints >= 200L -> "PLATA"
+                    else -> "BRONCE"
+                }
+                val originalLevel = order.getString("membershipLevel") ?: error("Falta la membresía")
+                if (originalLevel != newLevel)
+                    error("Los puntos del pedido no coinciden con la membresía original")
+
+                bookRefs.forEachIndexed { index, ref ->
+                    val oldStock = books[index].getLong("stock") ?: error("Existencias no disponibles")
+                    val restored = oldStock + (originalQuantities[ref.id] ?: 0L)
+                    if (restored < oldStock) error("Error al devolver el inventario")
+                    tx.update(ref, "stock", restored)
+                }
+                val currentLevel = user.getString("membershipLevel") ?: error("Membresía no disponible")
+                if (newPoints != pointsNow || newLevel != currentLevel) {
+                    tx.update(userRef, mapOf("loyaltyPoints" to newPoints, "membershipLevel" to newLevel))
+                }
+                // Se conserva lastDemoOrderId para identificar el ultimo pedido.
+                tx.update(orderRef, mapOf(
+                    "status" to "CANCELADO",
+                    "editUsed" to true,
+                    "bookQuantities" to emptyMap<String, Long>(),
+                    "items" to emptyList<Map<String, Any>>(),
+                    "subtotal" to 0.0, "discount" to 0.0, "shipping" to 0.0, "total" to 0.0,
+                    "subtotalCents" to 0L, "discountCents" to 0L,
+                    "shippingCents" to 0L, "totalCents" to 0L,
+                    "pointsEarned" to 0L, "pointsCredited" to false,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ))
+                true
+            }.addOnSuccessListener { callback(true, null) }
+                .addOnFailureListener { exception ->
+                    Log.e("BM_ORDER_CANCEL", "Cancelación rechazada: orderId=$orderId", exception)
+                    callback(false, exception.localizedMessage ?: "No se pudo cancelar el pedido")
+                }
+        }.addOnFailureListener { exception ->
+            Log.e("BM_ORDER_CANCEL", "No se pudo leer el pedido: orderId=$orderId", exception)
+            callback(false, exception.localizedMessage ?: "No se pudo consultar el pedido")
         }
     }
 }

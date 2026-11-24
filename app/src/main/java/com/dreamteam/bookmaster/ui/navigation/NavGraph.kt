@@ -61,7 +61,7 @@ sealed class Screen(val route: String) {
     object Cart : Screen("cart")
     object Checkout : Screen("checkout")
     object ReceiptPreview : Screen("receipt_preview")
-    object History : Screen("history_screen")
+    object Purchases : Screen("purchases_screen")
     object Profile : Screen("profile_screen")
     object CompleteProfile : Screen("complete_profile")
 }
@@ -253,7 +253,7 @@ fun NavGraph() {
     // La barra inferior pertenece únicamente al módulo cliente.
     val entradaActual by navController.currentBackStackEntryAsState()
     val rutaActual = entradaActual?.destination?.route
-    val rutasPrincipales = setOf(Screen.Home.route, Screen.History.route, Screen.Profile.route)
+    val rutasPrincipales = setOf(Screen.Home.route, Screen.Purchases.route, Screen.Profile.route)
     val mostrarBarra = rutaActual in rutasPrincipales
     val moradoOscuro = BookMasterDarkPurple
     // La posición se conserva al navegar entre Inicio y Detalles del libro.
@@ -276,14 +276,17 @@ fun NavGraph() {
 
 
     Scaffold(
-        containerColor = BookMasterBackground,
+        // El fondo detrás de la barra de estado también es morado en Mis pedidos.
+        // safeDrawing reserva ese espacio fuera del contenido de PurchasesScreen.
+        containerColor = if (rutaActual == Screen.Purchases.route)
+            BookMasterDarkPurple else BookMasterBackground,
         // El Login y Registro ya aplican sus propios márgenes de barras del sistema.
         contentWindowInsets = if (mostrarBarra) WindowInsets.safeDrawing else WindowInsets(0, 0, 0, 0),
         bottomBar = {
             if (mostrarBarra) {
                 NavigationBar(containerColor = moradoOscuro) {
                     listOf(
-                        Screen.History.route to "bell",
+                        Screen.Purchases.route to "bell",
                         Screen.Home.route to "home",
                         Screen.Profile.route to "person"
                     ).forEach { (ruta, dibujo) ->
@@ -542,18 +545,28 @@ fun NavGraph() {
                             receipt = preview,
                             onBackClick = { navController.popBackStack() },
                             onHomeClick = {
-                                receiptPreview = null
+                                // Navegar antes de limpiar el recibo evita que el efecto de
+                                // ReceiptPreview intente regresar mientras aún estamos aquí.
                                 navController.navigate(Screen.Home.route) {
                                     popUpTo(Screen.Home.route) { inclusive = false }
                                     launchSingleTop = true
+                                }
+                                receiptPreview = null
+                                // Si el catálogo se perdió en memoria, volver a recuperarlo.
+                                if (booksList.isEmpty() && !cargandoCatalogo) {
+                                    cargarCatalogoDeUsuario()
                                 }
                             }
                         )
                     }
                 }
 
-                composable(Screen.History.route) {
-                    HistoryScreen(onBackClick = { navController.navigate(Screen.Home.route) { launchSingleTop = true } })
+                composable(Screen.Purchases.route) {
+                    PurchasesScreen(
+                        onBackClick = {
+                            navController.navigate(Screen.Home.route) { launchSingleTop = true }
+                        }
+                    )
                 }
 
                 // Perfil del cliente: fotografía y nombres editables; nacimiento solo lectura.

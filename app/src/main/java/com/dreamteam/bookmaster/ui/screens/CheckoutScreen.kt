@@ -137,31 +137,19 @@ fun CheckoutScreen(
     val shipping = if (deliveryMode == "delivery") 8.50 else 0.0
     val total = discountedSubtotal + shipping
     val units = cartItems.sumOf { it.quantity }
-    // Fecha y hora ESTIMADAS para retirar: variación de prueba estable durante esta visita.
-    // No usa carga real, reservas ni disponibilidad de sucursal.
+    // El período de cancelación dura 5 minutos y después comienza la simulación.
+    // Previsualización estable durante esta visita al checkout.
     val pickupEstimate = remember(previewTime, units) {
-        val additionalDays = when {
-            units <= 2 -> Random.nextInt(0, 2)
-            units <= 5 -> Random.nextInt(1, 3)
-            units <= 10 -> Random.nextInt(2, 4)
-            else -> Random.nextInt(3, 6)
-        }
-        val calendar = Calendar.getInstance().apply {
-            timeInMillis = previewTime
-            add(Calendar.DAY_OF_YEAR, additionalDays)
-            set(Calendar.HOUR_OF_DAY, Random.nextInt(10, 18))
-            set(Calendar.MINUTE, listOf(0, 15, 30, 45).random())
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        // Si cae en el mismo día, asegurar que la hora sugerida sea futura.
-        if (calendar.timeInMillis <= previewTime) calendar.add(Calendar.DAY_OF_YEAR, 1)
-        val day = SimpleDateFormat("dd/MM/yyyy", Locale.US).format(calendar.time)
-        val hour12 = calendar.get(Calendar.HOUR).let { if (it == 0) 12 else it }
-        val minute = String.format(Locale.US, "%02d", calendar.get(Calendar.MINUTE))
-        val period = if (calendar.get(Calendar.AM_PM) == Calendar.AM) "a. m." else "p. m."
-        "$day · $hour12:$minute $period"
+        DemoDeliveryTimeline.formatDate(
+            DemoDeliveryTimeline.arrivalMillis(previewTime, units, "pickup")
+        )
     }
+    val deliveryEstimate = remember(previewTime, units) {
+        DemoDeliveryTimeline.formatDate(
+            DemoDeliveryTimeline.arrivalMillis(previewTime, units, "delivery")
+        )
+    }
+
     val nameValid = isValidCheckoutRecipient(recipientName)
     val selectedCardValid = checkoutSelectedCardId != null &&
             DemoPaymentStore.cards.any { it.id == checkoutSelectedCardId }
@@ -378,7 +366,7 @@ fun CheckoutScreen(
                                         fontWeight = FontWeight.SemiBold)
                                     Text(pickupEstimate, color = dark, fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal)
-                                    Text("Estimación orientativa según $units ejemplar(es).",
+                                    Text("Simulación: 5 min para cancelar + ${DemoDeliveryTimeline.extraMinutes(units, "pickup")} min adicionales para $units ejemplar(es).",
                                         color = muted, fontSize = 11.sp, lineHeight = 16.sp)
                                 }
                                 Icon(
@@ -399,6 +387,18 @@ fun CheckoutScreen(
                             Text("Elegí retiro en sucursal o entrega a domicilio.", color = requiredRed, fontSize = 11.sp)
                         }
                         if (deliveryMode == "delivery") {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("Fecha y hora estimada de entrega:", color = dark,
+                                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(deliveryEstimate, color = dark, fontSize = 14.sp)
+                                    Text("Simulación: 5 min para cancelar + ${DemoDeliveryTimeline.extraMinutes(units, "delivery")} min adicionales para $units ejemplar(es).",
+                                        color = muted, fontSize = 11.sp, lineHeight = 16.sp)
+                                }
+                                Icon(painterResource(R.drawable.ic_calendar_purple),
+                                    contentDescription = "Fecha de entrega estimada", tint = purple,
+                                    modifier = Modifier.padding(end = 12.dp).size(24.dp))
+                            }
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -596,7 +596,9 @@ fun CheckoutScreen(
                                         paymentLastFour = chosenCard.lastFour,
                                         deliveryMode = deliveryMode,
                                         deliveryAddress = if (deliveryMode == "delivery") address.trim() else "",
-                                        pickupEstimate = if (deliveryMode == "pickup") pickupEstimate else "",
+                                        // El campo existente transporta la estimación elegida al repositorio.
+                                        // Allí se separa en pickupEstimate o deliveryEstimate.
+                                        pickupEstimate = if (deliveryMode == "pickup") pickupEstimate else deliveryEstimate,
                                         membershipLevel = membership.level.orEmpty(),
                                         items = cartItems.map { item ->
                                             OrderReceiptItem(item.book.id, item.book.title, item.quantity, item.book.price)
