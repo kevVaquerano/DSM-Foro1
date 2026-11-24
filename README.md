@@ -18,6 +18,7 @@ desarrollada de forma nativa para Android.
 ## 📖 Tabla de contenidos
  
 - [Sobre el proyecto](#-sobre-el-proyecto)
+- [Mockups en Figma] (#-Mockups-de-Figma)
 - [Características principales](#-características-principales)
 - [Tecnologías y arquitectura](#️-tecnologías-y-arquitectura)
 - [Capturas de pantalla](#-capturas-de-pantalla)
@@ -25,19 +26,19 @@ desarrollada de forma nativa para Android.
 - [Reglas de seguridad de Firestore](#-reglas-de-seguridad-de-firestore)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Equipo](#-equipo)
----
-
----
- 
-## 📖 Mockups de Figma:
- 
-- [Figma]( https://www.figma.com/design/duYSlwo0M7w8PNx7GE5Jir/Etapa-1-DSM-DreamTeam?node-id=0-1&t=coqkGPRpG2d0rKW9-1)
 - 
 ---
- 
 ## 🎯 Sobre el proyecto
  
 **BookMaster** permite a los usuarios explorar un catálogo de libros, agregar productos a su carrito, realizar compras y consultar un historial de pedidos guardado de forma segura en la nube.
+
+---
+## 📖 Mockups de Figma:
+ 
+- [Mockups en Figma:]( https://www.figma.com/design/duYSlwo0M7w8PNx7GE5Jir/Etapa-1-DSM-DreamTeam?node-id=0-1&t=coqkGPRpG2d0rKW9-1)
+  
+---
+ 
  
 > 🎓 Proyecto académico desarrollado por **Dream Team**.
  
