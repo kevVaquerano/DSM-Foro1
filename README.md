@@ -66,6 +66,7 @@ desarrollada de forma nativa para Android.
 | **Base de datos** | [Firebase Cloud Firestore](https://firebase.google.com/products/firestore) |
 | **Autenticación** | [Firebase Authentication](https://firebase.google.com/products/auth) |
 | **Asincronía y estado** | Coroutines, `StateFlow` y `remember` / `mutableStateOf` |
+| **Carga de Imágenes:**| [Coil](https://coil-kt.github.io/coil/compose/) (*Coroutine Image Loader* para Compose)|
  
 
 ---
