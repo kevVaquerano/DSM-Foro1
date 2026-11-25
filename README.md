@@ -25,7 +25,7 @@ desarrollada de forma nativa para Android.
 - [Reglas de seguridad de Firestore](#-reglas-de-seguridad-de-firestore)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Equipo](#-equipo)
-  
+-[Licencia](#-Licencia)
 ---
 ## 🎯 Sobre el proyecto
  
@@ -158,5 +158,26 @@ Hecho con ❤️ y ☕ por **Dream Team**
  
 </div>
 
+---
+ 
+## 📄 Licencia
+ 
+<a href="https://creativecommons.org/licenses/by/4.0/deed.es">
+  <img src="https://licensebuttons.net/l/by/4.0/88x31.png" alt="Licencia Creative Commons" />
+</a>
+**BookMaster** © 2026 Kevin Arturo Vaquerano Morales y Hayzel Evelyn González Gutiérrez (Dream Team).
+ 
+Este trabajo está licenciado bajo la licencia
+[Creative Commons Atribución 4.0 Internacional (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/deed.es).
+ 
+**Esto significa que puedes:**
+ 
+- ✅ **Compartir:** copiar y redistribuir el material en cualquier medio o formato.
+- ✅ **Adaptar:** remezclar, transformar y construir a partir del material, incluso con fines comerciales.
+**Bajo la condición de:**
+ 
+- 📝 **Atribución:** debes dar crédito a los autores, incluir un enlace a la licencia e indicar si hiciste cambios.
+---
+ 
 
 
