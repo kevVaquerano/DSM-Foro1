@@ -21,7 +21,6 @@ desarrollada de forma nativa para Android.
 - [Mockups en Figma](#-Mockups-de-Figma) 
 - [Características principales](#-características-principales)
 - [Tecnologías y arquitectura](#️-tecnologías-y-arquitectura)
-- [Capturas de pantalla](#-capturas-de-pantalla)
 - [Instalación y configuración local](#-instalación-y-configuración-local)
 - [Reglas de seguridad de Firestore](#-reglas-de-seguridad-de-firestore)
 - [Estructura del repositorio](#-estructura-del-repositorio)
@@ -68,18 +67,7 @@ desarrollada de forma nativa para Android.
 | **Autenticación** | [Firebase Authentication](https://firebase.google.com/products/auth) |
 | **Asincronía y estado** | Coroutines, `StateFlow` y `remember` / `mutableStateOf` |
  
----
- 
-## 📸 Capturas de pantalla
- 
-<!-- Agregagaaaaaaaaaaaar -->
- 
-<div align="center">
-| Inicio de sesión | Catálogo | Carrito | Historial |
-|:---:|:---:|:---:|:---:|
-| *próximamente* | *próximamente* | *próximamente* | *próximamente* |
- 
-</div>
+
 ---
  
 ## 🚀 Instalación y configuración local
